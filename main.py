@@ -148,13 +148,45 @@ def csv_write():
             steps = data.get_steps(item)
             writer.writerow((time, heart, steps))
 
-def init():
-    global cursor
-    conn = sqlite3.connect("./export/data.db")
-    cursor = conn.cursor()
-    table_name = 'MI_BAND_ACTIVITY_SAMPLE'
-    cursor.execute(f'SELECT * FROM {table_name}')
-    steps_list, heart_list, time_list, unix_list = data_read(cursor)
+def init(location):
+    # the function can read from CSV, JSON and SQLITE DB files automatically
+    # filetype does not need to be specified, only the location (can be relative)
+    
+    location_type = location.split(".")[-1]
+
+    if location_type == "db":
+        global cursor
+        conn = sqlite3.connect(location)
+        cursor = conn.cursor()
+        table_name = 'MI_BAND_ACTIVITY_SAMPLE'
+        cursor.execute(f'SELECT * FROM {table_name}')
+        steps_list, heart_list, time_list, unix_list = data_read(cursor)
+
+    elif location_type == "csv":
+        with open(location, "r") as f:
+            reader = csv.reader(f)
+            next(reader)
+            steps_list, heart_list, unix_list = list(), list(), list()
+            for row in reader:
+                steps_list.append(int(row[2])) if row[2] != "" else steps_list.append(None)
+                heart_list.append(int(row[1])) if row[1] != "" else heart_list.append(None)
+                time_meta = datetime.datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S")
+                unix_list.append(int(datetime.datetime.timestamp(time_meta)))
+
+    elif location_type == "json":
+        with open(location, "r") as f:
+            data = json.load(f)
+            supported_items = data[str(0)].keys()
+            steps_list, heart_list, unix_list = list(), list(), list()
+            for i in range(len(data)):
+                if "heart" in supported_items:
+                    heart_list.append(data[str(i)]["heart"])
+                if "unix_time" in supported_items:
+                    unix_list.append(data[str(i)]["unix_time"])
+                if "steps" in supported_items:
+                    steps_list.append(data[str(i)]["steps"])
+
+
     data = Data(heart_list, steps_list, unix_list)
     return data
 
@@ -165,7 +197,7 @@ def calculate_pai_score(heart_rate_data):
     c4 = 9.8382
     ymax = 199
     yth = 80
-    time_period = 358860
+    time_period = 60*60*24*7
     heart_rate_data = [x for x in heart_rate_data if x is not None]
     print(heart_rate_data)
     heart_rate_data = np.array(heart_rate_data)
@@ -178,55 +210,40 @@ def calculate_pai_score(heart_rate_data):
     return pai_score
 
 
-def heart_rate_plot(csv_path = ""):
+def heart_rate_plot():
 
     plt.figure(figsize=(12, 6))
     plt.subplots_adjust(left=0.1, right=0.95, bottom=0.2, top=0.9)
 
-    if csv_path != "":
-        with open(csv_path, "r") as f:
-            reader = csv.reader(f)
-            next(reader)
-            time, heart = list(), list()
-            for row in reader:
-                time.append(row[0])
-                heart.append(row[1])
-    else:
-        heart = data.heart
-        time = list()
-        time_stamps = data.timestamps
+    heart = data.heart
+    time = list()
+    time_stamps = data.timestamps
 
-        for item in time_stamps:  
-            time.append(data.get_utc_time(item))
+    for item in time_stamps:  
+        time.append(data.get_utc_time(item))
 
     x_points = data.timestamps
     y_points = heart
 
-    def main(data):
-        data_smooth = list()
-        for i in range(len(data)):
-            def main(data, i):
-                sum, runs = int(), 0
-                for subcount in range(9):
-                    try:
-                        sum += int(data[i-5+subcount])
-                        runs += 1
-                    except:
-                        pass
-                    subcount += 1
-                point_smooth = sum/runs if runs > 0 else None
-                return point_smooth
-            data_smooth.append(round(main(data, i)))
+    def correct_nones(data):
+        current_data,data_smooth, i = list(), list(), int()
+        for item in data:
             i += 1
+            current_data.append(item)
+            if len(current_data) > 10: current_data.pop(0)
+            rounding_list = [value for value in current_data if value is not None]
+            if not rounding_list: data_smooth.append(round(np.average(data_smooth[i-5:i+5])))
+            else: data_smooth.append(round(np.average(rounding_list)))
         return data_smooth
     
-    y_points_smooth = main(y_points)
+    y_points_smooth = correct_nones(y_points)
     y_points_smooth = savgol_filter(y_points_smooth, 21, 2)
     x_points = x_points[0:-1]
     y_points_smooth = y_points_smooth[0:-1]
+    ticks_count = 4
     
     def get_ticks():
-        points = x_points[::round((len(x_points)/10))]
+        points = x_points[::round((len(x_points)/ticks_count))]
         date = list()
         for item in points:
             date.append(data.get_utc_time(item))
@@ -234,7 +251,7 @@ def heart_rate_plot(csv_path = ""):
     
     x_labels = get_ticks()
 
-    plt.xticks(x_points[::round((len(x_points)/10))], x_labels, rotation=45)
+    plt.xticks(x_points[::round((len(x_points)/ticks_count))], x_labels, rotation=45)
     plt.ylim(60, 200)
     plt.xlim(x_points[0], x_points[-1])
     plt.plot(x_points, y_points_smooth)
@@ -245,6 +262,7 @@ def heart_rate_plot(csv_path = ""):
     tm.sleep(10)
 
 global data
-data = init()
+data = init("D:\Dokumenty\Kódování\GitHub-Repozitory\mibandsync\data\data.json")
 print(calculate_pai_score(data.heart))
+heart_rate_plot()
 
