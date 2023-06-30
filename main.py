@@ -151,7 +151,7 @@ def csv_write():
 def init(location):
     # the function can read from CSV, JSON and SQLITE DB files automatically
     # filetype does not need to be specified, only the location (can be relative)
-    
+
     location_type = location.split(".")[-1]
 
     if location_type == "db":
@@ -179,12 +179,9 @@ def init(location):
             supported_items = data[str(0)].keys()
             steps_list, heart_list, unix_list = list(), list(), list()
             for i in range(len(data)):
-                if "heart" in supported_items:
-                    heart_list.append(data[str(i)]["heart"])
-                if "unix_time" in supported_items:
-                    unix_list.append(data[str(i)]["unix_time"])
-                if "steps" in supported_items:
-                    steps_list.append(data[str(i)]["steps"])
+                heart_list.append(data[str(i)].get("heart", None) if "heart" in supported_items else None)
+                unix_list.append(data[str(i)].get("unix_time", None) if "unix_time" in supported_items else None)
+                steps_list.append(data[str(i)].get("steps", None) if "steps" in supported_items else None)
 
 
     data = Data(heart_list, steps_list, unix_list)
