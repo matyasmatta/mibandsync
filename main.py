@@ -44,8 +44,51 @@ class Data:
             return time
         else:
             return None
+        
+    def get_midnight(self, zone="00:00:00"): # Set the UTC time which should be marked as midnight (22:00:00 for CEST)
+        midnights, days = list(), list()
+        for item in self.timestamps:
+            if self.get_utc_time(item).endswith(zone):
+                midnights.append(item)
+                days.append(self.get_date(item))
+        return midnights, days # Returns the UNIX times for midnights and returns which days those are
+    
+    def filter_by_timestamp_range(self, start_time, end_time):
+        filtered_heart = []
+        filtered_steps = []
+        filtered_timestamps = []
+    
+        for i in range(len(self.timestamps)):
+            timestamp = self.timestamps[i]
+            if start_time <= timestamp <= end_time:
+                filtered_heart.append(self.heart[i])
+                filtered_steps.append(self.steps[i])
+                filtered_timestamps.append(timestamp)
+        
+        return Data(filtered_heart, filtered_steps, filtered_timestamps)
 
-def daily_summary(steps, heart, date):
+def daily_summary():
+    steps_list, heart_list = list(), list()
+    timestamps, datums = data.get_midnight("22:00:00")
+
+    for index in range(len(timestamps)):
+        bottom_limit = timestamps[index]
+        upper_limit = timestamps[index+1] if index+1 < len(timestamps) else max(data.timestamps)
+        filtered_data = data.filter_by_timestamp_range(bottom_limit, upper_limit)
+        print(filtered_data)
+        final_data = [item for item in filtered_data.steps if item is not None]
+        final_data = sum(final_data)
+        steps_list.append(final_data)
+
+    for index in range(len(timestamps)):
+        bottom_limit = timestamps[index]
+        upper_limit = timestamps[index+1] if index+1 < len(timestamps) else max(data.timestamps)
+        filtered_data = data.filter_by_timestamp_range(bottom_limit, upper_limit)
+        print(filtered_data)
+        final_data = [item for item in filtered_data.steps if item is not None]
+        final_data = round(np.average(final_data))
+        heart_list.append(final_data)
+
     with open("./data/daily.csv", "a", newline="") as f:
         writer = csv.writer(f)
         # verify row
@@ -55,46 +98,9 @@ def daily_summary(steps, heart, date):
                 writer.writerow(("Date", "Steps", "Heart"))
         except:
             writer.writerow(("Date", "Steps", "Heart"))
-        writer.writerow((date, sum(steps), np.average(heart)))
+        writer.writerows(zip(datums, steps_list, heart_list))
 
-def main_read(cursor):
-    rows = cursor.fetchall()
-    i = int()
-    data = dict()
-    heart = int()
-    heart_list, steps_list = list(), list()
-    date_prev = str()
-    for row in rows:
-        time_stamp = row[0]
-        steps = row[4]
-        if row[6] > 10 and row[6] < 250:
-            heart = True
-        else:
-            heart = False
-        if row[4] > 0:
-            steps = True
-        else:
-            steps = False
-        if steps or heart:
-            human_time = datetime.datetime.utcfromtimestamp(time_stamp).isoformat()
-            data[i] = {}
-            data[i]["unix_time"] = time_stamp
-            data[i]["human_time"] = human_time
-            if steps:
-                data[i]["steps"] = row[4]
-            if heart:
-                data[i]["heart"] = row[6]
-            i += 1
-            date = human_time[0:10]
-            heart_list.append(row[6])
-            steps_list.append(row[4])
-            if date_prev != date and i > 10:
-                daily_summary(steps_list, heart_list, date)
-                heart_list = []
-                steps_list = []
-            date_prev = date
-    with open("./data/data.json", "w") as f:
-        json.dump(data, f, indent=4)
+
 
 def data_read(cursor):
     rows = cursor.fetchall()
@@ -151,7 +157,6 @@ def csv_write():
 def init(location):
     # the function can read from CSV, JSON and SQLITE DB files automatically
     # filetype does not need to be specified, only the location (can be relative)
-
     location_type = location.split(".")[-1]
 
     if location_type == "db":
@@ -212,15 +217,8 @@ def heart_rate_plot():
     plt.figure(figsize=(12, 6))
     plt.subplots_adjust(left=0.1, right=0.95, bottom=0.2, top=0.9)
 
-    heart = data.heart
-    time = list()
-    time_stamps = data.timestamps
-
-    for item in time_stamps:  
-        time.append(data.get_utc_time(item))
-
     x_points = data.timestamps
-    y_points = heart
+    y_points = data.heart
 
     def correct_nones(data):
         current_data,data_smooth, i = list(), list(), int()
@@ -238,17 +236,9 @@ def heart_rate_plot():
     x_points = x_points[0:-1]
     y_points_smooth = y_points_smooth[0:-1]
     ticks_count = 4
-    
-    def get_ticks():
-        points = x_points[::round((len(x_points)/ticks_count))]
-        date = list()
-        for item in points:
-            date.append(data.get_utc_time(item))
-        return date
-    
-    x_labels = get_ticks()
 
-    plt.xticks(x_points[::round((len(x_points)/ticks_count))], x_labels, rotation=45)
+
+    plt.xticks(*data.get_midnight(zone="22:00:00"), ha='left')
     plt.ylim(60, 200)
     plt.xlim(x_points[0], x_points[-1])
     plt.plot(x_points, y_points_smooth)
@@ -259,7 +249,5 @@ def heart_rate_plot():
     tm.sleep(10)
 
 global data
-data = init("D:\Dokumenty\Kódování\GitHub-Repozitory\mibandsync\data\data.json")
-print(calculate_pai_score(data.heart))
-heart_rate_plot()
-
+data = init("./export/data.db")
+daily_summary()
