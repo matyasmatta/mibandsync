@@ -12,15 +12,44 @@ import numpy as np
 
 
 class Data:
-    def __init__(self, heart_data, steps_data, timestamps):
+    def __init__(self, heart_data, steps_data, timestamps, activity_data):
         self.heart = heart_data
         self.steps = steps_data
         self.timestamps = timestamps
+        self.activity = activity_data
+        self.activity_type = list()
+        if self.activity:
+            self.activity_conversion()
+    
+    def activity_conversion(self):
+        for item in self.activity:
+            if item == 80:
+                activity = "Walking"
+            elif item == 240:
+                activity = "Sleeping"
+            elif item == 96:
+                activity = "Running"
+            elif item == 112:
+                activity = "Nightwalking"
+            else:
+                try:
+                    activity = activity_prev
+                except:
+                    activity = None
+            activity_prev = activity
+            self.activity_type.append(activity)
 
     def get_steps(self, timestamp):
         if timestamp in self.timestamps:
             index = self.timestamps.index(timestamp)
             return self.steps[index]
+        else:
+            return None
+        
+    def get_activity(self, timestamp):
+        if timestamp in self.timestamps:
+            index = self.timestamps.index(timestamp)
+            return self.activity[index]
         else:
             return None
         
@@ -45,18 +74,38 @@ class Data:
         else:
             return None
         
+    def get_timestamp(self, date):
+        # supports either date or time specifically (for ease of use)
+        if len(date) == 10:
+            time = datetime.datetime.strptime(date, '%Y-%m-%d')
+        else:
+            time = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
+
+        timestamp = (time - datetime.datetime(1970, 1, 1)).total_seconds()
+        if timestamp not in self.timestamps:
+            print("WARNING: Timestamp provided is not in Data object, function will default to the closest one.")
+            if timestamp > max(self.timestamps):
+                timestamp = max(self.timestamps)
+            elif timestamp < min(self.timestamps):
+                timestamp = min(self.timestamps)
+            else:
+                raise ValueError("When handling this exception an error occured.")
+        return timestamp
+        
     def get_midnight(self, zone="00:00:00"): # Set the UTC time which should be marked as midnight (22:00:00 for CEST)
         midnights, days = list(), list()
         for item in self.timestamps:
             if self.get_utc_time(item).endswith(zone):
                 midnights.append(item)
-                days.append(self.get_date(item))
+                correction_time = 86400 - (int(zone[0:2])*60*60) # There needs to be correction so that it's local time
+                days.append(self.get_date(item+correction_time))
         return midnights, days # Returns the UNIX times for midnights and returns which days those are
     
-    def filter_by_timestamp_range(self, start_time, end_time):
+    def range(self, start_time, end_time):
         filtered_heart = []
         filtered_steps = []
         filtered_timestamps = []
+        filtered_activity = []
     
         for i in range(len(self.timestamps)):
             timestamp = self.timestamps[i]
@@ -64,17 +113,18 @@ class Data:
                 filtered_heart.append(self.heart[i])
                 filtered_steps.append(self.steps[i])
                 filtered_timestamps.append(timestamp)
+                filtered_activity.append(self.activity[i])
         
-        return Data(filtered_heart, filtered_steps, filtered_timestamps)
+        return Data(filtered_heart, filtered_steps, filtered_timestamps, filtered_activity)
 
-def daily_summary():
+def daily_summary(data):
     steps_list, heart_list = list(), list()
     timestamps, datums = data.get_midnight("22:00:00")
 
     for index in range(len(timestamps)):
         bottom_limit = timestamps[index]
         upper_limit = timestamps[index+1] if index+1 < len(timestamps) else max(data.timestamps)
-        filtered_data = data.filter_by_timestamp_range(bottom_limit, upper_limit)
+        filtered_data = data.range(bottom_limit, upper_limit)
         print(filtered_data)
         final_data = [item for item in filtered_data.steps if item is not None]
         final_data = sum(final_data)
@@ -83,7 +133,7 @@ def daily_summary():
     for index in range(len(timestamps)):
         bottom_limit = timestamps[index]
         upper_limit = timestamps[index+1] if index+1 < len(timestamps) else max(data.timestamps)
-        filtered_data = data.filter_by_timestamp_range(bottom_limit, upper_limit)
+        filtered_data = data.range(bottom_limit, upper_limit)
         print(filtered_data)
         final_data = [item for item in filtered_data.steps if item is not None]
         final_data = round(np.average(final_data))
@@ -103,46 +153,28 @@ def daily_summary():
 
 
 def data_read(cursor):
+    # fetch sqlite
     rows = cursor.fetchall()
-    i = int()
-    data = dict()
-    heart = int()
-    heart_list, steps_list, time_list, unix_list = list(), list(), list(), list()
-    date_prev = str()
-    for row in rows:
-        time_stamp = row[0]
-        steps = row[4]
-        if row[6] > 10 and row[6] < 250:
-            heart = True
-        else:
-            heart = False
-        if row[4] > 0:
-            steps = True
-        else:
-            steps = False
-        if steps or heart:
-            human_time = datetime.datetime.utcfromtimestamp(time_stamp).isoformat()
-            data[i] = {}
-            data[i]["unix_time"] = time_stamp
-            data[i]["human_time"] = human_time
-            if steps:
-                data[i]["steps"] = row[4]
-                steps_list.append(row[4])
-            else:
-                steps_list.append(None)
-            if heart:
-                data[i]["heart"] = row[6]
-                heart_list.append(row[6])
-            else:
-                heart_list.append(None)
-            i += 1
-            date = human_time[0:10]
-            time_list.append(human_time)
-            unix_list.append(time_stamp)
-            date_prev = date
-    return steps_list, heart_list, time_list, unix_list
 
-def csv_write():
+    # variable initilialisation
+    heart_list, steps_list, time_list, unix_list, activity_list = list(), list(), list(), list(), list()
+
+    # new reader (2023-07-02)
+    for row in rows:
+        # read data from sheet
+        time_stamp, steps, heart, activity = int(), int(), int(), int()
+        time_stamp, steps, heart, activity = row[0], row[4], row[6], row[5]
+
+        # append data
+        time_list.append(datetime.datetime.utcfromtimestamp(time_stamp).isoformat())
+        unix_list.append(time_stamp)
+        steps_list.append(steps) if steps > 0 else steps_list.append(None)
+        heart_list.append(heart) if 250 > heart > 10 else heart_list.append(None)
+        activity_list.append(activity)
+
+    return steps_list, heart_list, time_list, unix_list, activity_list
+
+def csv_write(data):
     time_stamps = data.timestamps
     with open("./data/data.csv", "a", newline='') as f:
         writer = csv.writer(f)
@@ -152,7 +184,8 @@ def csv_write():
             time = data.get_utc_time(item)
             heart = data.get_heartrate(item)
             steps = data.get_steps(item)
-            writer.writerow((time, heart, steps))
+            activity_id = data.get_activity(item)
+            writer.writerow((time, heart, steps, activity_id))
 
 def init(location):
     # the function can read from CSV, JSON and SQLITE DB files automatically
@@ -165,7 +198,7 @@ def init(location):
         cursor = conn.cursor()
         table_name = 'MI_BAND_ACTIVITY_SAMPLE'
         cursor.execute(f'SELECT * FROM {table_name}')
-        steps_list, heart_list, time_list, unix_list = data_read(cursor)
+        steps_list, heart_list, time_list, unix_list, activity_list = data_read(cursor)
 
     elif location_type == "csv":
         with open(location, "r") as f:
@@ -189,7 +222,7 @@ def init(location):
                 steps_list.append(data[str(i)].get("steps", None) if "steps" in supported_items else None)
 
 
-    data = Data(heart_list, steps_list, unix_list)
+    data = Data(heart_list, steps_list, unix_list, activity_list)
     return data
 
 def calculate_pai_score(heart_rate_data):
@@ -212,10 +245,9 @@ def calculate_pai_score(heart_rate_data):
     return pai_score
 
 
-def heart_rate_plot():
+def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00"):
 
-    plt.figure(figsize=(12, 6))
-    plt.subplots_adjust(left=0.1, right=0.95, bottom=0.2, top=0.9)
+    plt.figure(figsize=figsize)
 
     x_points = data.timestamps
     y_points = data.heart
@@ -235,19 +267,18 @@ def heart_rate_plot():
     y_points_smooth = savgol_filter(y_points_smooth, 21, 2)
     x_points = x_points[0:-1]
     y_points_smooth = y_points_smooth[0:-1]
-    ticks_count = 4
 
-
-    plt.xticks(*data.get_midnight(zone="22:00:00"), ha='left')
-    plt.ylim(60, 200)
+    plt.xticks(*data.get_midnight(zone=zone), ha='left')
+    plt.ylim(round(min(y_points_smooth)-offset), round(max(y_points_smooth)+offset))
     plt.xlim(x_points[0], x_points[-1])
     plt.plot(x_points, y_points_smooth)
-
-    plt.savefig("./data/figure.png", dpi = 400)
+    plt.savefig("./data/figure.png", dpi=dpi) if save else None
     plt.show()
 
     tm.sleep(10)
 
-global data
 data = init("./export/data.db")
-daily_summary()
+csv_write(data)
+# as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
+# heart_rate_plot(data.range(data.get_timestamp("2023-06-27"), data.get_timestamp("2023-06-30")))
+# please note that the above method will use UTC time so there will be overflow, if you want to avoid it you can specify the time directly ("2023-06-27T22:00:00")
