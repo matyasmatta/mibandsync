@@ -66,10 +66,14 @@ class Data:
         else:
             return None
         
-    def get_date(self, timestamp):
+    def get_date(self, timestamp, format = False):
         if timestamp in self.timestamps:
-            time = datetime.datetime.utcfromtimestamp(timestamp).isoformat()
-            return time[0:10]
+            if format:
+                formatted_date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%dth %B")
+                return formatted_date
+            else:
+                time = datetime.datetime.utcfromtimestamp(timestamp).isoformat()
+                return time[0:10]
         else:
             return None
         
@@ -248,26 +252,6 @@ def init(location):
     data = Data(timestamps=unix_list, steps_data=steps_list, heart_data=heart_list, activity_data=activity_list)
     return data
 
-def calculate_pai_score(heart_rate_data):
-    c1 = 10.1817
-    c2 = 5.7808
-    c3 = 41.9374
-    c4 = 9.8382
-    ymax = 199
-    yth = 80
-    time_period = 60*60*24*7
-    heart_rate_data = [x for x in heart_rate_data if x is not None]
-    print(heart_rate_data)
-    heart_rate_data = np.array(heart_rate_data)
-    normalized_intensity = (heart_rate_data - yth)/(ymax - yth)
-    intensity_score = c1 * (np.exp(c2*normalized_intensity)-1)
-    activity_score = -time_period * np.trapz(intensity_score)
-    pai_score = c3 + c4 * (1 - np.exp(activity_score))
-    mi_band_coefficient = 116/51.7756 # this was my coefficient for V to PAI conversion, your mileage may differ
-    pai_score = pai_score * mi_band_coefficient
-    return pai_score
-
-
 def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00"):
 
     plt.figure(figsize=figsize)
@@ -302,7 +286,13 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
     x_points = x_points[0:-1]
     y_points_smooth = y_points_smooth[0:-1]
 
-    plt.xticks(*data.get_midnight(zone=zone), ha='left')
+    midnight_timestamps , _ = data.get_midnight(zone=zone)
+    labels = list()
+    for item in midnight_timestamps: 
+        labels.append(data.get_date(item,format="%dth %B"))
+
+
+    plt.xticks(midnight_timestamps, labels, ha='right')
     plt.ylim(round(min(y_points_smooth)-offset), round(max(y_points_smooth)+offset))
     plt.xlim(x_points[0], x_points[-1])
     plt.plot(x_points, y_points_smooth)
@@ -317,6 +307,7 @@ if get_config()["update_local_db"]:
 else:
     data = init("data.db")
 
+csv_write(data)
 heart_rate_plot(data)
 
 # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
