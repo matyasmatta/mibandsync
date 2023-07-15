@@ -15,18 +15,24 @@ import pytz
 
 
 class Data:
-    def __init__(self, timestamps, heart_data=[], steps_data=[], activity_data=[], sleep_data=[], deep_sleep_data = [], rem_sleep_data = []):
+    def __init__(self, timestamps, heart_data=[], steps_data=[], activity_data=[], sleep_data=[], deep_sleep_data = [], rem_sleep_data = [], whole_sleep_data = []):
         self.heart = heart_data
         self.steps = steps_data
         self.timestamps = timestamps
-        self.activity = self.Activity(activity_data, timestamps, sleep_data, deep_sleep_data, rem_sleep_data)
+        self.activity = self.Activity(activity_data, timestamps, sleep_data, deep_sleep_data, rem_sleep_data, whole_sleep_data)
 
     class Activity:
-        def __init__(self, data, timestamps, sleep_data  = [], deep_sleep_data  = [], rem_sleep_data = []):
+        def __init__(self, data, timestamps, sleep_data  = [], deep_sleep_data  = [], rem_sleep_data = [], whole_sleep_data = []):
             self.raw = data
             self.type = self.get_type(data)
             self.timestamps = timestamps
-            self.sleep = self.get_sleep(sleep_data, deep_sleep_data, rem_sleep_data)
+            if whole_sleep_data:
+                self.sleep = whole_sleep_data
+            elif sleep_data:
+                self.sleep = self.get_sleep(sleep_data, deep_sleep_data, rem_sleep_data) if sleep_data else []
+            else:
+                self.sleep = []
+                raise Warning("No sleep data provided")
         
         def get_sleep(self, sleep_data, deep_sleep_data, rem_sleep_data):
             result = list()
@@ -34,8 +40,11 @@ class Data:
                 metaresult = {}
                 index = self.timestamps.index(item)
                 metaresult["sleep"] = True if (sleep_data[index] > 20) or (self.raw[index] == "Sleeping") else False
-                metaresult["deep_sleep"] = True if (deep_sleep_data[index] != 128 and deep_sleep_data[index] > 160) else False
-                metaresult["rem_sleep"] = True if rem_sleep_data[index] > 0 else False
+                try:
+                    metaresult["deep_sleep"] = True if (deep_sleep_data[index] != 128 and deep_sleep_data[index] > 160) else False
+                    metaresult["rem_sleep"] = True if rem_sleep_data[index] > 0 else False
+                except:
+                    pass
                 result.append(metaresult)
             return result
 
@@ -139,10 +148,13 @@ class Data:
         return midnights, days # Returns the UNIX times for midnights and returns which days those are
     
     def range(self, start_time, end_time):
+        if end_time < start_time:
+            raise ValueError("Start time is after end time, code would generate empty Data object.")
         filtered_heart = []
         filtered_steps = []
         filtered_timestamps = []
         filtered_activity = []
+        filtered_sleep = []
     
         for i in range(len(self.timestamps)):
             timestamp = self.timestamps[i]
@@ -150,9 +162,10 @@ class Data:
                 filtered_heart.append(self.heart[i])
                 filtered_steps.append(self.steps[i])
                 filtered_timestamps.append(timestamp)
-                filtered_activity.append(self.activity[i])
+                filtered_activity.append(self.activity.raw[i])
+                filtered_sleep.append(self.activity.sleep[i])
         
-        return Data(heart_data=filtered_heart, steps_data=filtered_steps, timestamps=filtered_timestamps, activity_data=filtered_activity)
+        return Data(heart_data=filtered_heart, steps_data=filtered_steps, timestamps=filtered_timestamps, activity_data=filtered_activity, whole_sleep_data=filtered_sleep)
 
 def daily_summary(data):
     steps_list, heart_list = list(), list()
@@ -299,7 +312,7 @@ def init(location):
     data = Data(timestamps=timestamp, steps_data=steps, heart_data=heart_rate, activity_data=raw_kind, sleep_data=sleep, deep_sleep_data = deep_sleep, rem_sleep_data = rem_sleep)
     return data
 
-def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = False, fancy_ticks = True, show_high_hr = False):
+def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = False, fancy_ticks = True, show_high_hr = 90):
 
     plt.figure(figsize=figsize)
 
@@ -340,14 +353,19 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
         for item in midnight_timestamps: 
             labels.append(data.get_date(item,format="%dth %B"))
     if show_sleep:
-        for item in data.timestamps:
-            if data.activity.sleep[data.timestamps.index(item)]["sleep"] == True:
-                plt.axvspan(item, item+60, facecolor='blue', alpha=0.3)
+        if not data.activity.sleep:
+            raise Warning("No sleep data provided but a show_sleep function triggered")
+        else:
+            for item in data.timestamps:
+                if data.activity.sleep[data.timestamps.index(item)]["sleep"] == True:
+                    plt.axvspan(item, item+60, facecolor='blue', alpha=0.3)
     if show_high_hr:
+        if not data.heart:
+            raise Warning("No heartrate data provided but a show_high_hr function triggered")
         for item in data.timestamps:
             hrrate = data.get_heartrate(item)
             if hrrate:
-                if hrrate > 100:
+                if hrrate > show_high_hr:
                     plt.axvspan(item, item+60, facecolor='orange', alpha=0.3)
             
     plt.xticks(midnight_timestamps, labels, ha='right')
@@ -357,7 +375,7 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
     plt.savefig("./data/figure.png", dpi=dpi) if save else None
     plt.show()
 
-    tm.sleep(10)
+    tm.sleep(20)
 
 # initialisation from config.json file
 if get_config()["update_local_db"]:
@@ -365,8 +383,7 @@ if get_config()["update_local_db"]:
 else:
     data = init("data.db")
 
-csv_write(data)
-heart_rate_plot(data.range(data.get_timestamp("2023-07-12"), data.get_timestamp("2023-07-04")), show_high_hr=True, show_sleep=True)
+heart_rate_plot(data.range(data.get_timestamp("2023-07-12"), data.get_timestamp("2023-07-14")), show_high_hr=90, show_sleep=True)
 
 # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
 # heart_rate_plot(data.range(data.get_timestamp("2023-06-27"), data.get_timestamp("2023-06-30")))
