@@ -312,7 +312,7 @@ def init(location):
     data = Data(timestamps=timestamp, steps_data=steps, heart_data=heart_rate, activity_data=raw_kind, sleep_data=sleep, deep_sleep_data = deep_sleep, rem_sleep_data = rem_sleep)
     return data
 
-def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = False, fancy_ticks = True, show_high_hr = 90):
+def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = False, fancy_ticks = True, show_high_hr = 90, correct_midnights = True):
 
     plt.figure(figsize=figsize)
 
@@ -383,7 +383,7 @@ if get_config()["update_local_db"]:
 else:
     data = init("data.db")
 
-heart_rate_plot(data.range(data.get_timestamp("2023-07-12"), data.get_timestamp("2023-07-14")), show_high_hr=90, show_sleep=True)
+heart_rate_plot(data.range(data.get_timestamp("2023-07-12"), data.get_timestamp("2023-07-16")), show_high_hr=90, show_sleep=True)
 
 # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
 # heart_rate_plot(data.range(data.get_timestamp("2023-06-27"), data.get_timestamp("2023-06-30")))
