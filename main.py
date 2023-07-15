@@ -9,47 +9,53 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
 import numpy as np
+import drive
+from utils import get_config
+import pytz
 
 
 class Data:
-    def __init__(self, heart_data, steps_data, timestamps, activity_data):
+    def __init__(self, timestamps, heart_data=[], steps_data=[], activity_data=[]):
         self.heart = heart_data
         self.steps = steps_data
         self.timestamps = timestamps
-        self.activity = activity_data
-        self.activity_type = list()
-        if self.activity:
-            self.activity_conversion()
-    
-    def activity_conversion(self):
-        for item in self.activity:
-            if item == 80:
-                activity = "Walking"
-            elif item == 240:
-                activity = "Sleeping"
-            elif item == 96:
-                activity = "Running"
-            elif item == 112:
-                activity = "Nightwalking"
-            else:
-                try:
-                    activity = activity_prev
-                except:
-                    activity = None
-            activity_prev = activity
-            self.activity_type.append(activity)
+        self.activity = self.Activity(activity_data, timestamps)
 
+    class Activity:
+        def __init__(self, data, timestamps):
+            self.raw = data
+            self.type = self.get_type(data)
+            self.timestamps = timestamps
+
+        def get_type(self, data):
+            result = []
+            prefix = "./activity_type/"
+            activity_config_file = prefix + get_config()["device"].lower().replace(" ", "_") + ".json"
+            with open(activity_config_file) as f:
+                activity_config = json.load(f)
+                activity_config = {value: key for key, value in activity_config.items()} # using inverted dict for easier search
+            for item in data:
+                result.append(activity_config[item]) if item in activity_config else result.append(None)
+            return result
+        
+        def get_activity_id(self, timestamp):
+            if timestamp in self.timestamps:
+                index = self.timestamps.index(timestamp)
+                return self.raw[index]
+            else:
+                return None
+    
+        def get_activity_type(self, timestamp):
+            if timestamp in self.timestamps:
+                index = self.timestamps.index(timestamp)
+                return self.type[index]
+            else:
+                return None
+            
     def get_steps(self, timestamp):
         if timestamp in self.timestamps:
             index = self.timestamps.index(timestamp)
             return self.steps[index]
-        else:
-            return None
-        
-    def get_activity(self, timestamp):
-        if timestamp in self.timestamps:
-            index = self.timestamps.index(timestamp)
-            return self.activity[index]
         else:
             return None
         
@@ -71,6 +77,21 @@ class Data:
         if timestamp in self.timestamps:
             time = datetime.datetime.utcfromtimestamp(timestamp).isoformat()
             return time
+        else:
+            return None
+        
+    def get_local_time(self, timestamp):
+        if timestamp in self.timestamps:
+            # Convert Unix timestamp to datetime object
+            dt = datetime.datetime.fromtimestamp(timestamp)
+
+            # Get the local time zone
+            local_timezone = pytz.timezone('Europe/Prague')
+
+            # Convert datetime object to local time
+            local_time = dt.astimezone(local_timezone).strftime('%Y-%m-%dT%H:%M:%S')
+
+            return local_time
         else:
             return None
         
@@ -115,7 +136,7 @@ class Data:
                 filtered_timestamps.append(timestamp)
                 filtered_activity.append(self.activity[i])
         
-        return Data(filtered_heart, filtered_steps, filtered_timestamps, filtered_activity)
+        return Data(heart_data=filtered_heart, steps_data=filtered_steps, timestamps=filtered_timestamps, activity_data=filtered_activity)
 
 def daily_summary(data):
     steps_list, heart_list = list(), list()
@@ -150,8 +171,6 @@ def daily_summary(data):
             writer.writerow(("Date", "Steps", "Heart"))
         writer.writerows(zip(datums, steps_list, heart_list))
 
-
-
 def data_read(cursor):
     # fetch sqlite
     rows = cursor.fetchall()
@@ -181,11 +200,12 @@ def csv_write(data):
         if f.tell() == 0:  # Check if the file is empty
             writer.writerow(("Time", "Heart", "Steps"))  # Write the header if the file is empty
         for item in time_stamps:
-            time = data.get_utc_time(item)
+            time = data.get_local_time(item)
             heart = data.get_heartrate(item)
             steps = data.get_steps(item)
-            activity_id = data.get_activity(item)
-            writer.writerow((time, heart, steps, activity_id))
+            activity_id = data.activity.get_activity_id(item)
+            activity_type = data.activity.get_activity_type(item)
+            writer.writerow((time, heart, steps, activity_id, activity_type))
 
 def init(location):
     # the function can read from CSV, JSON and SQLITE DB files automatically
@@ -196,7 +216,10 @@ def init(location):
         global cursor
         conn = sqlite3.connect(location)
         cursor = conn.cursor()
-        table_name = 'MI_BAND_ACTIVITY_SAMPLE'
+        if get_config()["device"] == "Amazfit Band 5":
+            table_name = 'MI_BAND_ACTIVITY_SAMPLE'
+        elif get_config()["device"] == "Mi Band 7":
+            table_name = 'HUAMI_EXTENDED_ACTIVITY_SAMPLE'
         cursor.execute(f'SELECT * FROM {table_name}')
         steps_list, heart_list, time_list, unix_list, activity_list = data_read(cursor)
 
@@ -222,7 +245,7 @@ def init(location):
                 steps_list.append(data[str(i)].get("steps", None) if "steps" in supported_items else None)
 
 
-    data = Data(heart_list, steps_list, unix_list, activity_list)
+    data = Data(timestamps=unix_list, steps_data=steps_list, heart_data=heart_list, activity_data=activity_list)
     return data
 
 def calculate_pai_score(heart_rate_data):
@@ -259,7 +282,18 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
             current_data.append(item)
             if len(current_data) > 10: current_data.pop(0)
             rounding_list = [value for value in current_data if value is not None]
-            if not rounding_list: data_smooth.append(round(np.average(data_smooth[i-5:i+5])))
+            if not rounding_list: 
+                try:
+                    data_smooth.append(round(np.average(data_smooth[i-5:i+5])))
+                except:
+                    index_of_first = i
+                    for item in data:
+                        if data[index_of_first]: 
+                            result = data[index_of_first]
+                            break
+                        else:
+                            index_of_first += 1
+                    data_smooth.append(result)
             else: data_smooth.append(round(np.average(rounding_list)))
         return data_smooth
     
@@ -277,8 +311,14 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
 
     tm.sleep(10)
 
-data = init("./export/data.db")
-csv_write(data)
+# initialisation from config.json file
+if get_config()["update_local_db"]:
+    data = init(drive.get_folder(get_config()["data_folder_id"], api_key= get_config()["api_key"]))
+else:
+    data = init("data.db")
+
+heart_rate_plot(data)
+
 # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
 # heart_rate_plot(data.range(data.get_timestamp("2023-06-27"), data.get_timestamp("2023-06-30")))
 # please note that the above method will use UTC time so there will be overflow, if you want to avoid it you can specify the time directly ("2023-06-27T22:00:00")

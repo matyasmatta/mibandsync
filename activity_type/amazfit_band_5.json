@@ -1,0 +1,6 @@
+{
+    "walking": 80,
+    "sleeping": 240,
+    "running": 96,
+    "nightwalking": 112
+}
