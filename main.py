@@ -15,17 +15,29 @@ import pytz
 
 
 class Data:
-    def __init__(self, timestamps, heart_data=[], steps_data=[], activity_data=[]):
+    def __init__(self, timestamps, heart_data=[], steps_data=[], activity_data=[], sleep_data=[], deep_sleep_data = [], rem_sleep_data = []):
         self.heart = heart_data
         self.steps = steps_data
         self.timestamps = timestamps
-        self.activity = self.Activity(activity_data, timestamps)
+        self.activity = self.Activity(activity_data, timestamps, sleep_data, deep_sleep_data, rem_sleep_data)
 
     class Activity:
-        def __init__(self, data, timestamps):
+        def __init__(self, data, timestamps, sleep_data  = [], deep_sleep_data  = [], rem_sleep_data = []):
             self.raw = data
             self.type = self.get_type(data)
             self.timestamps = timestamps
+            self.sleep = self.get_sleep(sleep_data, deep_sleep_data, rem_sleep_data)
+        
+        def get_sleep(self, sleep_data, deep_sleep_data, rem_sleep_data):
+            result = list()
+            for item in self.timestamps:
+                metaresult = {}
+                index = self.timestamps.index(item)
+                metaresult["sleep"] = True if (sleep_data[index] > 20) or (self.raw[index] == "Sleeping") else False
+                metaresult["deep_sleep"] = True if (deep_sleep_data[index] != 128 and deep_sleep_data[index] > 160) else False
+                metaresult["rem_sleep"] = True if rem_sleep_data[index] > 0 else False
+                result.append(metaresult)
+            return result
 
         def get_type(self, data):
             result = []
@@ -180,22 +192,47 @@ def data_read(cursor):
     rows = cursor.fetchall()
 
     # variable initilialisation
-    heart_list, steps_list, time_list, unix_list, activity_list = list(), list(), list(), list(), list()
+    timestamp = []
+    device_id = []
+    user_id = []
+    raw_intensity = []
+    steps = []
+    raw_kind = []
+    heart_rate = []
+    unknown_1 = []
+    sleep = []
+    deep_sleep = []
+    rem_sleep = []
+    utc_time = []
 
-    # new reader (2023-07-02)
-    for row in rows:
-        # read data from sheet
-        time_stamp, steps, heart, activity = int(), int(), int(), int()
-        time_stamp, steps, heart, activity = row[0], row[4], row[6], row[5]
+    if get_config()["device"] == "Mi Band 7":
+        # new reader (2023-07-02)
+        for row in rows:
+            # append data
+            timestamp.append(row[0])
+            device_id.append(row[1])
+            user_id.append(row[2])
+            raw_intensity.append(row[3])
+            steps.append(row[4]) if row[4] > 0 else steps.append(None)
+            raw_kind.append(row[5]) 
+            heart_rate.append(row[6]) if 250 > row[6] > 10 else heart_rate.append(None)
+            unknown_1.append(row[7])
+            sleep.append(row[8])
+            deep_sleep.append(row[9]) if row[9] != 128 else deep_sleep.append(0)
+            rem_sleep.append(row[10]) if row[10] != 128 else rem_sleep.append(0)
+            utc_time.append(datetime.datetime.utcfromtimestamp(row[0]).isoformat())
+        
 
-        # append data
-        time_list.append(datetime.datetime.utcfromtimestamp(time_stamp).isoformat())
-        unix_list.append(time_stamp)
-        steps_list.append(steps) if steps > 0 else steps_list.append(None)
-        heart_list.append(heart) if 250 > heart > 10 else heart_list.append(None)
-        activity_list.append(activity)
+    if get_config()["device"] == "Amazfit Band 5":
+        for row in rows:
+            # append data
+            timestamp.append(row[0])
+            steps.append(row[4])
+            heart_rate.append(row[6])
+            raw_kind.append(row[5])
 
-    return steps_list, heart_list, time_list, unix_list, activity_list
+    return timestamp, device_id, user_id, raw_intensity, steps, raw_kind, heart_rate, unknown_1, sleep, deep_sleep, rem_sleep
+
 
 def csv_write(data):
     time_stamps = data.timestamps
@@ -215,6 +252,19 @@ def init(location):
     # the function can read from CSV, JSON and SQLITE DB files automatically
     # filetype does not need to be specified, only the location (can be relative)
     location_type = location.split(".")[-1]
+    
+    # initialise variables
+    timestamp = []
+    device_id = []
+    user_id = []
+    raw_intensity = []
+    steps = []
+    raw_kind = []
+    heart_rate = []
+    unknown_1 = []
+    sleep = []
+    deep_sleep = []
+    rem_sleep = []
 
     if location_type == "db":
         global cursor
@@ -225,34 +275,31 @@ def init(location):
         elif get_config()["device"] == "Mi Band 7":
             table_name = 'HUAMI_EXTENDED_ACTIVITY_SAMPLE'
         cursor.execute(f'SELECT * FROM {table_name}')
-        steps_list, heart_list, time_list, unix_list, activity_list = data_read(cursor)
+        timestamp, device_id, user_id, raw_intensity, steps, raw_kind, heart_rate, unknown_1, sleep, deep_sleep, rem_sleep = data_read(cursor)
 
     elif location_type == "csv":
         with open(location, "r") as f:
             reader = csv.reader(f)
             next(reader)
-            steps_list, heart_list, unix_list = list(), list(), list()
             for row in reader:
-                steps_list.append(int(row[2])) if row[2] != "" else steps_list.append(None)
-                heart_list.append(int(row[1])) if row[1] != "" else heart_list.append(None)
-                time_meta = datetime.datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S")
-                unix_list.append(int(datetime.datetime.timestamp(time_meta)))
+                steps.append(int(row[2])) if row[2] != "" else steps.append(None)
+                heart_rate.append(int(row[1])) if row[1] != "" else heart_rate.append(None)
+                timestamp.append(int(datetime.datetime.timestamp(datetime.datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S"))))
 
     elif location_type == "json":
         with open(location, "r") as f:
             data = json.load(f)
             supported_items = data[str(0)].keys()
-            steps_list, heart_list, unix_list = list(), list(), list()
             for i in range(len(data)):
-                heart_list.append(data[str(i)].get("heart", None) if "heart" in supported_items else None)
-                unix_list.append(data[str(i)].get("unix_time", None) if "unix_time" in supported_items else None)
-                steps_list.append(data[str(i)].get("steps", None) if "steps" in supported_items else None)
+                heart_rate.append(data[str(i)].get("heart", None) if "heart" in supported_items else None)
+                timestamp.append(data[str(i)].get("unix_time", None) if "unix_time" in supported_items else None)
+                steps.append(data[str(i)].get("steps", None) if "steps" in supported_items else None)
 
 
-    data = Data(timestamps=unix_list, steps_data=steps_list, heart_data=heart_list, activity_data=activity_list)
+    data = Data(timestamps=timestamp, steps_data=steps, heart_data=heart_rate, activity_data=raw_kind, sleep_data=sleep, deep_sleep_data = deep_sleep, rem_sleep_data = rem_sleep)
     return data
 
-def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00"):
+def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = False, fancy_ticks = True, show_high_hr = False):
 
     plt.figure(figsize=figsize)
 
@@ -288,10 +335,21 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
 
     midnight_timestamps , _ = data.get_midnight(zone=zone)
     labels = list()
-    for item in midnight_timestamps: 
-        labels.append(data.get_date(item,format="%dth %B"))
 
-
+    if fancy_ticks:
+        for item in midnight_timestamps: 
+            labels.append(data.get_date(item,format="%dth %B"))
+    if show_sleep:
+        for item in data.timestamps:
+            if data.activity.sleep[data.timestamps.index(item)]["sleep"] == True:
+                plt.axvspan(item, item+60, facecolor='blue', alpha=0.3)
+    if show_high_hr:
+        for item in data.timestamps:
+            hrrate = data.get_heartrate(item)
+            if hrrate:
+                if hrrate > 100:
+                    plt.axvspan(item, item+60, facecolor='orange', alpha=0.3)
+            
     plt.xticks(midnight_timestamps, labels, ha='right')
     plt.ylim(round(min(y_points_smooth)-offset), round(max(y_points_smooth)+offset))
     plt.xlim(x_points[0], x_points[-1])
@@ -308,7 +366,7 @@ else:
     data = init("data.db")
 
 csv_write(data)
-heart_rate_plot(data)
+heart_rate_plot(data.range(data.get_timestamp("2023-07-12"), data.get_timestamp("2023-07-04")), show_high_hr=True, show_sleep=True)
 
 # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
 # heart_rate_plot(data.range(data.get_timestamp("2023-06-27"), data.get_timestamp("2023-06-30")))

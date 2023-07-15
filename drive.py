@@ -37,7 +37,7 @@ def save_response_content(response, destination):
             if chunk: # filter out keep-alive new chunks
                 f.write(chunk)
 
-def get_folder(remote_folder, local_dir="./", debug_en=False, api_key="", api_key_path =r"D:\Dokumenty\Klíče\drive_api.txt"):
+def get_folder(remote_folder, local_dir="./", debug_en=False, api_key="", api_key_path =""):
 
     if api_key:
         # push key brute force
@@ -48,7 +48,9 @@ def get_folder(remote_folder, local_dir="./", debug_en=False, api_key="", api_ke
             with open(api_key_path) as f: 
                 api_key = f.readline()
         except:
-            raise FileNotFoundError
+            raise FileNotFoundError("File provided in drive.get_folder() for API was not found")
+    else:
+        raise ValueError("No api_key determining arguement was passed into drive.get_folder() function")
 
     success = True
     try:
