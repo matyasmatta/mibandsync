@@ -384,5 +384,5 @@ else:
     data = init("data.db")
 
 # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
-# heart_rate_plot(data.range(data.get_timestamp("2023-06-27"), data.get_timestamp("2023-06-30")))
+heart_rate_plot(data.range(data.get_timestamp("2023-07-10"), data.get_timestamp("2023-07-20")), show_sleep=True)
 # please note that the above method will use UTC time so there will be overflow, if you want to avoid it you can specify the time directly ("2023-06-27T22:00:00")
