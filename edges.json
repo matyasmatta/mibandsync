@@ -1,0 +1,171 @@
+{
+    "1688331720": {
+        "time": "2023-07-02T23:02:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 57,
+        "type": "night",
+        "day": "2023-07-02"
+    },
+    "1688348100": {
+        "time": "2023-07-03T03:35:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    },
+    "1688418600": {
+        "time": "2023-07-03T23:10:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 26,
+        "type": "night",
+        "day": "2023-07-03"
+    },
+    "1688506800": {
+        "time": "2023-07-04T23:40:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 34,
+        "type": "night",
+        "day": "2023-07-04"
+    },
+    "1688523300": {
+        "time": "2023-07-05T04:15:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    },
+    "1688562540": {
+        "time": "2023-07-05T15:09:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 45,
+        "type": "nap",
+        "day": "2023-07-05"
+    },
+    "1688565900": {
+        "time": "2023-07-05T16:05:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 101
+    },
+    "1688593140": {
+        "time": "2023-07-05T23:39:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 76,
+        "type": "night",
+        "day": "2023-07-05"
+    },
+    "1688607360": {
+        "time": "2023-07-06T03:36:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    },
+    "1688680980": {
+        "time": "2023-07-07T00:03:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 52,
+        "type": "night",
+        "day": "2023-07-06"
+    },
+    "1688771220": {
+        "time": "2023-07-08T01:07:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 45,
+        "type": "night",
+        "day": "2023-07-07"
+    },
+    "1688854320": {
+        "time": "2023-07-09T00:12:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 108,
+        "type": "night",
+        "day": "2023-07-08"
+    },
+    "1688940720": {
+        "time": "2023-07-10T00:12:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 84,
+        "type": "night",
+        "day": "2023-07-09"
+    },
+    "1689024960": {
+        "time": "2023-07-10T23:36:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 72,
+        "type": "night",
+        "day": "2023-07-10"
+    },
+    "1689030660": {
+        "time": "2023-07-11T01:11:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 167
+    },
+    "1689042540": {
+        "time": "2023-07-11T04:29:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    },
+    "1689046140": {
+        "time": "2023-07-11T05:29:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    },
+    "1689109920": {
+        "time": "2023-07-11T23:12:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 27,
+        "type": "night",
+        "day": "2023-07-11"
+    },
+    "1689198840": {
+        "time": "2023-07-12T23:54:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 69,
+        "type": "night",
+        "day": "2023-07-12"
+    },
+    "1689287100": {
+        "time": "2023-07-14T00:25:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 70,
+        "type": "night",
+        "day": "2023-07-13"
+    },
+    "1689319620": {
+        "time": "2023-07-14T09:27:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    },
+    "1689366120": {
+        "time": "2023-07-14T22:22:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 57,
+        "type": "night",
+        "day": "2023-07-14"
+    },
+    "1689392580": {
+        "time": "2023-07-15T05:43:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    },
+    "1689457380": {
+        "time": "2023-07-15T23:43:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 55,
+        "type": "night",
+        "day": "2023-07-15"
+    },
+    "1689542640": {
+        "time": "2023-07-16T23:24:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 71,
+        "type": "night",
+        "day": "2023-07-16"
+    },
+    "1689632160": {
+        "time": "2023-07-18T00:16:00",
+        "180min_nosleep": true,
+        "time_to_asleep": 89,
+        "type": "night",
+        "day": "2023-07-17"
+    },
+    "1689653940": {
+        "time": "2023-07-18T06:19:00",
+        "180min_nosleep": false,
+        "time_to_asleep": 240
+    }
+}
