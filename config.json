@@ -1,6 +1,7 @@
 {
     "device": "Mi Band 7",
     "api_key": "USE YOUR OWN KEY",
-    "data_folder_id": "1IUKWpOUHVYOWnuQ127cLofcL2d3_ZLZr",
-    "update_local_db": true
+    "data_folder_id": "USE YOUR OWN FOLDER",
+    "update_local_db": true,
+    "fill_activity_data": true
 }
