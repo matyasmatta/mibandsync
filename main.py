@@ -10,8 +10,9 @@ from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
 import numpy as np
 import drive
-from utils import get_config
+from utils import get_config, correct_nones
 import pytz
+import warnings
 
 
 class Data:
@@ -57,6 +58,7 @@ class Data:
                 activity_config = {value: key for key, value in activity_config.items()} # using inverted dict for easier search
             for item in data:
                 result.append(activity_config[item]) if item in activity_config else result.append(None)
+            if get_config()["fill_activity_data"]: result = correct_nones(result)
             return result
         
         def get_activity_id(self, timestamp):
@@ -106,19 +108,19 @@ class Data:
             return None
         
     def get_local_time(self, timestamp):
+        # Convert Unix timestamp to datetime object
+        dt = datetime.datetime.fromtimestamp(timestamp)
+
+        # Get the local time zone
+        local_timezone = pytz.timezone('Europe/Prague')
+
+        # Convert datetime object to local time
+        local_time = dt.astimezone(local_timezone).strftime('%Y-%m-%dT%H:%M:%S')
         if timestamp in self.timestamps:
-            # Convert Unix timestamp to datetime object
-            dt = datetime.datetime.fromtimestamp(timestamp)
-
-            # Get the local time zone
-            local_timezone = pytz.timezone('Europe/Prague')
-
-            # Convert datetime object to local time
-            local_time = dt.astimezone(local_timezone).strftime('%Y-%m-%dT%H:%M:%S')
-
             return local_time
         else:
-            return None
+            warnings.warn("Data object function received data not included in self, may cause problems in other functions.", Warning)
+            return local_time
         
     def get_timestamp(self, date):
         # supports either date or time specifically (for ease of use)
@@ -129,7 +131,7 @@ class Data:
 
         timestamp = (time - datetime.datetime(1970, 1, 1)).total_seconds()
         if timestamp not in self.timestamps:
-            print("WARNING: Timestamp provided is not in Data object, function will default to the closest one.")
+            warnings.warn("Timestamp provided is not in Data object, function will default to the closest one.", ImportWarning)
             if timestamp > max(self.timestamps):
                 timestamp = max(self.timestamps)
             elif timestamp < min(self.timestamps):
@@ -247,19 +249,20 @@ def data_read(cursor):
     return timestamp, device_id, user_id, raw_intensity, steps, raw_kind, heart_rate, unknown_1, sleep, deep_sleep, rem_sleep
 
 
-def csv_write(data):
+def csv_write(data, name = "./data/data.csv"):
     time_stamps = data.timestamps
-    with open("./data/data.csv", "a", newline='') as f:
+    with open(name, "a", newline='') as f:
         writer = csv.writer(f)
         if f.tell() == 0:  # Check if the file is empty
             writer.writerow(("Time", "Heart", "Steps"))  # Write the header if the file is empty
         for item in time_stamps:
+            unix = item
             time = data.get_local_time(item)
             heart = data.get_heartrate(item)
             steps = data.get_steps(item)
             activity_id = data.activity.get_activity_id(item)
             activity_type = data.activity.get_activity_type(item)
-            writer.writerow((time, heart, steps, activity_id, activity_type))
+            writer.writerow((unix, time, heart, steps, activity_id, activity_type))
 
 def init(location):
     # the function can read from CSV, JSON and SQLITE DB files automatically
@@ -318,28 +321,6 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
 
     x_points = data.timestamps
     y_points = data.heart
-
-    def correct_nones(data):
-        current_data,data_smooth, i = list(), list(), int()
-        for item in data:
-            i += 1
-            current_data.append(item)
-            if len(current_data) > 10: current_data.pop(0)
-            rounding_list = [value for value in current_data if value is not None]
-            if not rounding_list: 
-                try:
-                    data_smooth.append(round(np.average(data_smooth[i-5:i+5])))
-                except:
-                    index_of_first = i
-                    for item in data:
-                        if data[index_of_first]: 
-                            result = data[index_of_first]
-                            break
-                        else:
-                            index_of_first += 1
-                    data_smooth.append(result)
-            else: data_smooth.append(round(np.average(rounding_list)))
-        return data_smooth
     
     y_points_smooth = correct_nones(y_points)
     y_points_smooth = savgol_filter(y_points_smooth, 21, 2)
@@ -383,7 +364,9 @@ if get_config()["update_local_db"]:
 else:
     data = init("data.db")
 
-heart_rate_plot(data.range(data.get_timestamp("2023-07-12"), data.get_timestamp("2023-07-16")), show_high_hr=90, show_sleep=True)
-# as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
-# heart_rate_plot(data.range(data.get_timestamp("2023-06-27"), data.get_timestamp("2023-06-30")))
-# please note that the above method will use UTC time so there will be overflow, if you want to avoid it you can specify the time directly ("2023-06-27T22:00:00")
+if __name__ == "__main__":
+    # csv_write(data)
+
+    # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
+    heart_rate_plot(data.range(data.get_timestamp("2023-07-10"), data.get_timestamp("2023-07-20")), show_sleep=True)
+    # please note that the above method will use UTC time so there will be overflow, if you want to avoid it you can specify the time directly ("2023-06-27T22:00:00")
