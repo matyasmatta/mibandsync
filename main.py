@@ -202,6 +202,16 @@ def daily_summary(data):
             writer.writerow(("Date", "Steps", "Heart"))
         writer.writerows(zip(datums, steps_list, heart_list))
 
+    def create_dict(datums, steps_list, heart_list):
+        result = {}
+        for i in range(len(datums)):
+            result[datums[i]] = {}
+            result[datums[i]]["steps"] = steps_list[i]
+            result[datums[i]]["heart"] = heart_list[i]
+        return result
+    
+    return create_dict(datums, steps_list, heart_list)
+
 def data_read(cursor):
     # fetch sqlite
     rows = cursor.fetchall()
@@ -264,7 +274,18 @@ def csv_write(data, name = "./data/data.csv"):
             activity_type = data.activity.get_activity_type(item)
             writer.writerow((unix, time, heart, steps, activity_id, activity_type))
 
-def init(location):
+def init(location=""):
+    if location == "":
+        # initialisation from config.json file
+        if get_config()["update_local_db"]:
+            try:
+                location = drive.get_folder(get_config()["data_folder_id"], api_key= get_config()["api_key"])
+            except:
+                location = "data.db"
+                warnings.warn("Something went wrong when accessing the Google Drive")
+        else:
+            location = "data.db"
+
     # the function can read from CSV, JSON and SQLITE DB files automatically
     # filetype does not need to be specified, only the location (can be relative)
     location_type = location.split(".")[-1]
@@ -358,15 +379,9 @@ def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="2
 
     tm.sleep(20)
 
-# initialisation from config.json file
-if get_config()["update_local_db"]:
-    data = init(drive.get_folder(get_config()["data_folder_id"], api_key= get_config()["api_key"]))
-else:
-    data = init("data.db")
-
 if __name__ == "__main__":
     # csv_write(data)
-
+    data = init()
     # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
     heart_rate_plot(data.range(data.get_timestamp("2023-07-10"), data.get_timestamp("2023-07-20")), show_sleep=True)
     # please note that the above method will use UTC time so there will be overflow, if you want to avoid it you can specify the time directly ("2023-06-27T22:00:00")

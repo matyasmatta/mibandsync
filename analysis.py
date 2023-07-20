@@ -1,12 +1,13 @@
 import json
 import warnings
+from utils import get_config
 
 def init(data, json_out=False):
     result = dict()
     for i in range(len(data.activity.type)):
         result[data.timestamps[i]] = data.activity.type[i]
     if json_out:
-        with open("results.json", "w") as f:
+        with open("json_out/results.json", "w") as f:
             json.dump(result, f, indent=4)
     return result
 
@@ -96,9 +97,9 @@ def get_time_to_asleep(data, json_out=False, debug=False):
     if not debug:
         edges = format_edges(meta_result)
 
-    if json_out:
+    if get_config()["mhi_json_out"]:
         try:
-            with open("edges.json", "w") as f:
+            with open("json_out/edges.json", "w") as f:
                 json.dump(edges, f, indent=4)
         except:
             raise ValueError("Fatal error - edges is undefined for: json_out")
@@ -107,7 +108,7 @@ def get_time_to_asleep(data, json_out=False, debug=False):
     else:
         raise  ValueError("Fatal error - edges is undefined for: return")
 
-def get_sleep_length(data, edges={}, json_out=False):
+def get_sleep_length(data, edges={}):
     if edges == {}:
         # Only for emergency-cases
         import main
@@ -148,8 +149,8 @@ def get_sleep_length(data, edges={}, json_out=False):
         output[day]["slept_minutes"] = slept_minutes
         output[day]["awake_minutes"] = awake_minutes
         
-        if json_out:
-            with open("sleep.json", "w") as f:
+        if get_config()["mhi_json_out"]:
+            with open("json_out/sleep.json", "w") as f:
                 json.dump(output, f, indent=4)
 
     return output

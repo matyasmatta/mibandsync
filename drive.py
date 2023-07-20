@@ -50,7 +50,7 @@ def get_folder(remote_folder, local_dir="./", debug_en=False, api_key="", api_ke
         except:
             raise FileNotFoundError("File provided in drive.get_folder() for API was not found")
     else:
-        raise ValueError("No api_key determining arguement was passed into drive.get_folder() function")
+        raise ValueError("No api_key determining argument was passed into drive.get_folder() function")
 
     success = True
     try:
