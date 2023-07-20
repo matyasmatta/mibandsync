@@ -3,5 +3,6 @@
     "api_key": "USE YOUR OWN KEY",
     "data_folder_id": "USE YOUR OWN FOLDER",
     "update_local_db": true,
-    "fill_activity_data": true
+    "fill_activity_data": true,
+    "mhi_json_out": true
 }
