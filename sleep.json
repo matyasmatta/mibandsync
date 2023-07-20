@@ -1,0 +1,98 @@
+{
+    "2023-07-02": {
+        "start_time": 1688331720,
+        "end_time": 1688365560,
+        "slept_minutes": 544,
+        "awake_minutes": 20
+    },
+    "2023-07-03": {
+        "start_time": 1688418600,
+        "end_time": 1688455560,
+        "slept_minutes": 616,
+        "awake_minutes": 0
+    },
+    "2023-07-04": {
+        "start_time": 1688506800,
+        "end_time": 1688538660,
+        "slept_minutes": 528,
+        "awake_minutes": 3
+    },
+    "2023-07-05": {
+        "start_time": 1688593140,
+        "end_time": 1688622960,
+        "slept_minutes": 493,
+        "awake_minutes": 4
+    },
+    "2023-07-06": {
+        "start_time": 1688680980,
+        "end_time": 1688712900,
+        "slept_minutes": 532,
+        "awake_minutes": 0
+    },
+    "2023-07-07": {
+        "start_time": 1688771220,
+        "end_time": 1688799420,
+        "slept_minutes": 470,
+        "awake_minutes": 0
+    },
+    "2023-07-08": {
+        "start_time": 1688854320,
+        "end_time": 1688885700,
+        "slept_minutes": 523,
+        "awake_minutes": 0
+    },
+    "2023-07-09": {
+        "start_time": 1688940720,
+        "end_time": 1688973120,
+        "slept_minutes": 540,
+        "awake_minutes": 0
+    },
+    "2023-07-10": {
+        "start_time": 1689024960,
+        "end_time": 1689053100,
+        "slept_minutes": 426,
+        "awake_minutes": 43
+    },
+    "2023-07-11": {
+        "start_time": 1689109920,
+        "end_time": 1689148200,
+        "slept_minutes": 638,
+        "awake_minutes": 0
+    },
+    "2023-07-12": {
+        "start_time": 1689198840,
+        "end_time": 1689231660,
+        "slept_minutes": 547,
+        "awake_minutes": 0
+    },
+    "2023-07-13": {
+        "start_time": 1689287100,
+        "end_time": 1689320880,
+        "slept_minutes": 518,
+        "awake_minutes": 45
+    },
+    "2023-07-14": {
+        "start_time": 1689366120,
+        "end_time": 1689393660,
+        "slept_minutes": 455,
+        "awake_minutes": 4
+    },
+    "2023-07-15": {
+        "start_time": 1689457380,
+        "end_time": 1689489780,
+        "slept_minutes": 540,
+        "awake_minutes": 0
+    },
+    "2023-07-16": {
+        "start_time": 1689542640,
+        "end_time": 1689578580,
+        "slept_minutes": 599,
+        "awake_minutes": 0
+    },
+    "2023-07-17": {
+        "start_time": 1689632160,
+        "end_time": 1689667440,
+        "slept_minutes": 537,
+        "awake_minutes": 51
+    }
+}
