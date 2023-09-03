@@ -3,3 +3,4 @@
 *.db
 *.log
 *.db-journal
+data/main.db
