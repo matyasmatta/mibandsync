@@ -119,7 +119,7 @@ class Database:
 
             progress_bar = tqdm(total=len(rows), desc="Sorting and processing SQL")
         
-            while True:
+            while i < len(rows):
                 try:
                     test = rows[i]
                 except:
@@ -143,7 +143,7 @@ class Database:
                     elif data_type == "calories":
                         calories = value
                     elif data_type == "intensity":
-                        activity = "workout"
+                        activity = "exercise"
 
                     if prev_activity == "sleep" and unix_time < sleep_time + sleep_lenght:
                         activity = "sleep"
@@ -152,6 +152,7 @@ class Database:
                     try:
                         next_unix_time, _, _, _,  = rows[i+1]
                     except:
+                        i += 1
                         break
                     i += 1
                     if i % 1000 == 0:
