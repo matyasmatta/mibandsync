@@ -100,7 +100,7 @@ class Database:
         if self.conn:
             self.conn.close()        
 
-    def transfer_data(self, DESTINATION):
+    def transfer_data(self):
         try:
             # Create a cursor for each database connection
             source_cursor = self.conn.cursor()
@@ -113,6 +113,12 @@ class Database:
             # Transform and insert data into the destination database
             i = 1
             prev_unix_time = int()
+            data_list = list()
+            sleep_time = str()
+            prev_activity = str()
+
+            progress_bar = tqdm(total=len(rows), desc="Sorting and processing SQL")
+        
             while True:
                 try:
                     test = rows[i]
@@ -127,22 +133,39 @@ class Database:
                     unix_time, source, data_type, value = rows[i]
                     if data_type == "steps":
                         steps = value
-                    if data_type == "sleep":
+                    elif data_type == "sleep":
                         activity = "sleep"
-                    if data_type == "heart_rate":
+                        prev_activity = "sleep"
+                        sleep_time = unix_time
+                        sleep_lenght = value
+                    elif data_type == "heart_rate":
                         heart_rate = value
-                    if data_type == "calories":
+                    elif data_type == "calories":
                         calories = value
-                    next_unix_time, _, _, _,  = rows[i+1]
+                    elif data_type == "intensity":
+                        activity = "workout"
+
+                    if prev_activity == "sleep" and unix_time < sleep_time + sleep_lenght:
+                        activity = "sleep"
+                        prev_activity = "sleep"
+                    
+                    try:
+                        next_unix_time, _, _, _,  = rows[i+1]
+                    except:
+                        break
                     i += 1
+                    if i % 1000 == 0:
+                        progress_bar.update(1000)  # Update the progress bar
                     if next_unix_time != unix_time and i > 2:
-                        destination_cursor.execute('''
-                            INSERT INTO TIME_POINTS (UNIX_TIME, SOURCE, STEPS, ACTIVITY, HEART_RATE, CALORIES)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        ''', (unix_time, source, steps, activity, heart_rate, calories))
+                        human_time = datetime.datetime.utcfromtimestamp(unix_time).strftime("%Y-%m-%d %H:%M:%S")
+                        data_list.append((unix_time, human_time, source, steps, activity, heart_rate, calories))
+                        if len(data_list) > 10000:
+                            if not READ_ONLY: self.write_data_bulk(data_list=data_list, command='INSERT INTO TIME_POINTS (UNIX_TIME, HUMAN_TIME, SOURCE, STEPS, ACTIVITY, HEART_RATE, CALORIES) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                            data_list = list()
                         self.conn.commit()
                         break
 
+            progress_bar.close()
             print("Data transfer completed successfully.")
 
         except sqlite3.Error as e:
@@ -221,6 +244,11 @@ def data_reader(location=CSV_LOCATION):
                 time = row[3]
                 type = type_interpret(row[2])
                 data = data_interpret(json.loads(row[4]))
+                if type == "sleep":
+                    try: 
+                        time = (json.loads(row[4]))["bedtime"]
+                    except:
+                        time = (json.loads(row[4]))["start_time"]
                 data_list.append((time, source, type, data))
                 SUCCESSFUL_RUNS += 1
             except:
@@ -234,9 +262,10 @@ def data_reader(location=CSV_LOCATION):
                 progress_bar.update(1000)  # Update the progress bar
         progress_bar.close()
         print("\n Encountered", ERROR_COUNT, "errors during import.")
-        if not READ_ONLY: db.write_data_bulk(data_list, command=r'INSERT INTO DATA_POINTS (UNIX_TIME, SOURCE, TYPE, VALUE) VALUES (?, ?, ?, ?)')
+        if not READ_ONLY: db.write_data_bulk(data_list=data_list, command="INSERT INTO DATA_POINTS (UNIX_TIME, SOURCE, TYPE, VALUE) VALUES (?, ?, ?, ?)")
 
 if __name__ == "__main__":
-    data_reader()
+    db = Database(db_file=DB_LOCATION)
+    db.transfer_data()
 
 # todo: fix the "dynamic" data type
