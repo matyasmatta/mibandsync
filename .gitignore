@@ -1,3 +1,6 @@
 
 .csv
 data/20230821_6481096885_MiFitness_hlth_center_fitness_data.csv
+*.db
+*.log
+*.db
