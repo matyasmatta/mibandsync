@@ -8,6 +8,7 @@ import json
 from tqdm import tqdm  # Import tqdm for the progress bar
 import datetime
 import os
+from utils import get_config
 
 # params
 CSV_LOCATION = r"D:\Zálohy\Exporty\20230821_6481096885_MiFitness_fr1_data_copy\20230821_6481096885_MiFitness_hlth_center_fitness_data.csv"
@@ -52,7 +53,7 @@ class Database:
         conn = None
         try:
             conn = sqlite3.connect(self.db_file)
-            print(sqlite3.version)
+            print("Connecting to database, current version of SQLite: " + sqlite3.version)
             return conn
         except sqlite3.Error as e:
             print(e)
@@ -167,6 +168,7 @@ class Database:
                         break
 
             progress_bar.close()
+            self.conn.cursor().execute("DELETE FROM TIME_POINTS WHERE UNIX_TIME = 0 OR UNIX_TIME > 2000000000")
             print("Data transfer completed successfully.")
 
         except sqlite3.Error as e:
@@ -176,9 +178,164 @@ class Database:
             source_cursor.close()
             destination_cursor.close()
 
+class Utils:
+    def get_timestamp(time, offset=0): # where time is YYYY-MM-DD(THH:MM:SS)
+        # supports either date or time specifically (for ease of use)
+        if len(time) == 10:
+            time = datetime.datetime.strptime(time, '%Y-%m-%d')
+        else:
+            time = datetime.datetime.strptime(time, '%Y-%m-%dT%H:%M:%S')
+        time_change = datetime.timedelta(hours=offset)
+        time = time + time_change
+        timestamp = (time - datetime.datetime(1970, 1, 1)).total_seconds()
+        return timestamp
+
+    def timedelta_to_human_readable(timedelta_obj):
+        seconds = int(timedelta_obj.total_seconds())
+        hours, remainder = divmod(seconds, 3600)
+        minutes, _ = divmod(remainder, 60)
+        return f"{hours}h {minutes}min"
+
+class Analytics:
+    def daily_analysis(timezone=0):
+        sleep_data = Analytics.get_sleep()
+        steps_data = Analytics.get_steps()
+        data = Analytics.merge_data(sleep_data, steps_data)
+        if get_config()["mi_fitness_json_out"] == True:
+            with open("json_out/daily_summary.json", "w") as f: 
+                json.dump(data, f, indent=4)
+        Analytics.data_to_db(data)
+    
+    def data_to_db(data):
+        if db.conn:
+            try:
+                human_time, unix_time, steps, sleep = list(), list(), list(), list()
+                for key in data.keys():
+                    human_time.append(key)
+                    unix_time.append(Utils.get_timestamp(key))
+                    steps.append(data[key]["steps"])
+                    sleep.append(data[key]["sleep"]["seconds"])
+
+                cursor = db.conn.cursor()
+                cursor.executemany('''
+                    INSERT INTO DAILY_SUMMARY (UNIX_TIME, HUMAN_TIME, STEPS, SLEEP)
+                    VALUES (?, ?, ?, ?)
+                ''', zip(unix_time, human_time, steps, sleep))
+                db.conn.commit()
+            except sqlite3.Error as e:
+                print(e)
+
+    def merge_data(sleep_data, steps_data):
+        merged_data = {}  # Initialize the merged data dictionary
+
+        # Iterate through the date keys in sleep_data and merge the values
+        for date, sleep_seconds in sleep_data.items():
+            if date not in merged_data:
+                merged_data[date] = {}
+            merged_data[date]["sleep"] = {}    
+            merged_data[date]["sleep"]["seconds"] = int(sleep_seconds.get("raw", datetime.timedelta()).total_seconds())
+            merged_data[date]["sleep"]["hour"] = Utils.timedelta_to_human_readable(sleep_seconds["raw"])
+            merged_data[date]["steps"] = steps_data.get(date, 0)
+
+        # Iterate through the date keys in steps_data and add any missing dates to merged_data
+        for date, steps in steps_data.items():
+            if date not in merged_data:
+                merged_data[date] = {}
+                merged_data[date]["sleep"] = {}
+                merged_data[date]["sleep"]["seconds"] = 0
+                merged_data[date]["steps"] = steps
+        
+        # Sort data by date
+        merged_data = dict(sorted(merged_data.items(), key=lambda x: datetime.datetime.strptime(x[0], "%Y-%m-%d")))
+
+        return merged_data
+
+    def get_sleep():
+        # Create a connection to the SQLite database
+        conn = db.create_connection()
+        cursor = conn.cursor()
+
+        # Query the database to retrieve relevant data
+        cursor.execute("SELECT UNIX_TIME, ACTIVITY FROM TIME_POINTS")
+        rows = cursor.fetchall()
+
+        # Initialize variables to track sleep duration
+        sleep_start = None
+        sleep_duration = datetime.timedelta()
+        sleep_data = {}  # Dictionary to store sleep durations for each day
+
+        # Iterate through the rows
+        for row in rows:
+            unix_time, activity = row
+
+            if activity == "sleep":
+                if sleep_start is None:
+                    sleep_start = unix_time
+            else:
+                if sleep_start is not None:
+                    # Calculate sleep duration
+                    sleep_end = unix_time
+                    sleep_duration += datetime.timedelta(seconds=(sleep_end - sleep_start))
+
+                    # Determine the date for the sleep data
+                    sleep_date = datetime.datetime.utcfromtimestamp(sleep_start).strftime("%Y-%m-%d")
+
+                    # Update the sleep duration for the corresponding date
+                    sleep_data[sleep_date] = {}
+                    sleep_data[sleep_date]['raw'] = datetime.timedelta()
+                    sleep_data[sleep_date]['bedtime'] = {}
+                    sleep_data[sleep_date]['waketime'] = {}
+
+                    if sleep_date in sleep_data:
+                        sleep_data[sleep_date]['raw'] += sleep_duration
+                    else:
+                        sleep_data[sleep_date]['raw'] = sleep_duration
+                    sleep_data[sleep_date]['bedtime'] = sleep_start
+                    sleep_data[sleep_date]['waketime'] = sleep_end
+
+                    # Restart vars
+                    sleep_start = None
+                    sleep_end = None
+                    sleep_duration = datetime.timedelta()
+
+        conn.close()
+
+        return sleep_data
+
+    def get_steps():
+        # Create a connection to the SQLite database
+        conn = db.create_connection()
+        cursor = conn.cursor()
+
+        # Query the database to retrieve relevant data where STEPS > 0
+        cursor.execute("SELECT UNIX_TIME, STEPS FROM TIME_POINTS WHERE STEPS > 0")
+        rows = cursor.fetchall()
+
+        # Initialize variables to track steps data
+        step_data = {}  # Dictionary to store steps data for each day
+
+        # Iterate through the rows
+        for row in rows:
+            unix_time, steps = row
+
+            # Determine the date for the steps data
+            step_date = datetime.datetime.utcfromtimestamp(unix_time).strftime("%Y-%m-%d")
+
+            # Update the steps data for the corresponding date
+
+            if steps > 200:
+                steps = 0
+
+            if step_date in step_data:
+                step_data[step_date] += steps
+            else:
+                step_data[step_date] = steps
+
+        conn.close()
+
+        return step_data
 
 def data_reader(location=CSV_LOCATION):
-
     logger = Logger()
 
     def type_interpret(type):
@@ -266,7 +423,10 @@ def data_reader(location=CSV_LOCATION):
         if not READ_ONLY: db.write_data_bulk(data_list=data_list, command="INSERT INTO DATA_POINTS (UNIX_TIME, SOURCE, TYPE, VALUE) VALUES (?, ?, ?, ?)")
 
 if __name__ == "__main__":
+    data_reader()
+    global db
     db = Database(db_file=DB_LOCATION)
     db.transfer_data()
+    Analytics.daily_analysis()
 
 # todo: fix the "dynamic" data type
