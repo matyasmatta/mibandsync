@@ -304,6 +304,8 @@ class Analytics:
             if activity == "sleep":
                 if sleep_start is None:
                     sleep_start = unix_time
+                else:
+                    sleep_end = unix_time
             else:
                 if sleep_start is not None:
                     # Calculate sleep duration
