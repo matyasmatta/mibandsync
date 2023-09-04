@@ -189,8 +189,10 @@ class Database:
                             data_list = list()
                         self.conn.commit()
                         break
-
-            if get_config()["progress_bars"]: progress_bar.close()
+            
+            if get_config()["progress_bars"]: 
+                progress_bar.update(len(rows)-i+100)
+                progress_bar.close()
             self.conn.cursor().execute("DELETE FROM TIME_POINTS WHERE UNIX_TIME = 0 OR UNIX_TIME > 2000000000")
 
         except sqlite3.Error as e:
