@@ -64,12 +64,23 @@ class Database:
         """ Create a database connection to a SQLite database """
         conn = None
         try:
+            # Attempt to connect to the database
             conn = sqlite3.connect(self.db_file)
-            if get_config()["show_sql_version"]: print("Connecting to database, current version of SQLite: " + sqlite3.version)
+
+            # Check if the database is locked by trying to execute a simple query
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1;")
+            cursor.close()
+
+            if get_config()["show_sql_version"]:
+                print("Connecting to database, current version of SQLite:", sqlite3.version)
+
             return conn
-        except sqlite3.Error as e:
-            print(e)
+        except sqlite3.OperationalError as e:
+            # Database is locked or some other operational error occurred
+            print("SQLite operational error:", e)
             return None
+
 
     def create_table(self):
         """ Create the DATA_POINTS table if it doesn't exist """
@@ -279,11 +290,14 @@ class Analytics:
         sleep_start = None
         sleep_duration = datetime.timedelta()
         sleep_data = {}  # Dictionary to store sleep durations for each day
+        batch_count = 0
 
         # Iterate through the rows
         for row in rows:
+            batch_count += 1
             unix_time, activity = row
-            if get_config()["progress_bars"]: progress_bar.update(1)
+            if batch_count % 1000 == 0:
+                if get_config()["progress_bars"]: progress_bar.update(1000)
 
             if activity == "sleep":
                 if sleep_start is None:
@@ -315,6 +329,9 @@ class Analytics:
                     sleep_end = None
                     sleep_duration = datetime.timedelta()
 
+        # Ensure the progress bar reaches 100% for any remaining rows
+        if get_config()["progress_bars"] and batch_count > 0:
+            progress_bar.update(batch_count)
         conn.close()
         if get_config()["progress_bars"]: progress_bar.close()
 
@@ -334,10 +351,12 @@ class Analytics:
 
         # Initialize variables to track steps data
         step_data = {}  # Dictionary to store steps data for each day
-
+        batch_count = 0
         # Iterate through the rows
         for row in rows:
-            if get_config()["progress_bars"]: progress_bar.update(1)
+            if batch_count % 1000 == 0:
+                if get_config()["progress_bars"]:
+                    progress_bar.update(1000)
             unix_time, steps = row
 
             # Determine the date for the steps data
@@ -352,8 +371,12 @@ class Analytics:
                 step_data[step_date] += steps
             else:
                 step_data[step_date] = steps
+            batch_count += 1
 
         conn.close()
+        # Ensure the progress bar reaches 100% for any remaining rows
+        if get_config()["progress_bars"]:
+            progress_bar.update(1000)
         if get_config()["progress_bars"]: progress_bar.close()
         return step_data
 
