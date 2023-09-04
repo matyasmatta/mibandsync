@@ -9,6 +9,7 @@ from tqdm import tqdm  # Import tqdm for the progress bar
 import datetime
 import os
 from utils import get_config
+from contextlib import contextmanager
 
 # params
 CSV_LOCATION = r"D:\Zálohy\Exporty\20230821_6481096885_MiFitness_fr1_data_copy\20230821_6481096885_MiFitness_hlth_center_fitness_data.csv"
@@ -43,6 +44,17 @@ class Logger:
             file.write(log_entry)
 
 class Database:
+    @contextmanager
+    def connection(self):
+        """A context manager for database connections"""
+        try:
+            if not self.conn:
+                self.conn = self.create_connection()
+            yield self.conn
+        finally:
+            if self.conn:
+                self.conn.close()
+
     def __init__(self, db_file):
         self.db_file = db_file
         self.conn = self.create_connection()
@@ -53,7 +65,7 @@ class Database:
         conn = None
         try:
             conn = sqlite3.connect(self.db_file)
-            print("Connecting to database, current version of SQLite: " + sqlite3.version)
+            if get_config()["show_sql_version"]: print("Connecting to database, current version of SQLite: " + sqlite3.version)
             return conn
         except sqlite3.Error as e:
             print(e)
@@ -118,7 +130,7 @@ class Database:
             sleep_time = str()
             prev_activity = str()
 
-            progress_bar = tqdm(total=len(rows), desc="Sorting and processing SQL")
+            if get_config()["progress_bars"]: progress_bar = tqdm(total=len(rows), desc="Sorting and processing SQL")
         
             while i < len(rows):
                 try:
@@ -157,7 +169,7 @@ class Database:
                         break
                     i += 1
                     if i % 1000 == 0:
-                        progress_bar.update(1000)  # Update the progress bar
+                        if get_config()["progress_bars"]: progress_bar.update(1000)  # Update the progress bar
                     if next_unix_time != unix_time and i > 2:
                         human_time = datetime.datetime.utcfromtimestamp(unix_time).strftime("%Y-%m-%d %H:%M:%S")
                         data_list.append((unix_time, human_time, source, steps, activity, heart_rate, calories))
@@ -167,9 +179,8 @@ class Database:
                         self.conn.commit()
                         break
 
-            progress_bar.close()
+            if get_config()["progress_bars"]: progress_bar.close()
             self.conn.cursor().execute("DELETE FROM TIME_POINTS WHERE UNIX_TIME = 0 OR UNIX_TIME > 2000000000")
-            print("Data transfer completed successfully.")
 
         except sqlite3.Error as e:
             print("SQLite error:", e)
@@ -227,6 +238,7 @@ class Analytics:
 
     def merge_data(sleep_data, steps_data):
         merged_data = {}  # Initialize the merged data dictionary
+        if get_config()["progress_bars"]: progress_bar = tqdm(total=len(sleep_data.items()), desc="Merging data into a summary")
 
         # Iterate through the date keys in sleep_data and merge the values
         for date, sleep_seconds in sleep_data.items():
@@ -236,6 +248,7 @@ class Analytics:
             merged_data[date]["sleep"]["seconds"] = int(sleep_seconds.get("raw", datetime.timedelta()).total_seconds())
             merged_data[date]["sleep"]["hour"] = Utils.timedelta_to_human_readable(sleep_seconds["raw"])
             merged_data[date]["steps"] = steps_data.get(date, 0)
+            if get_config()["progress_bars"]: progress_bar.update(1)
 
         # Iterate through the date keys in steps_data and add any missing dates to merged_data
         for date, steps in steps_data.items():
@@ -244,10 +257,10 @@ class Analytics:
                 merged_data[date]["sleep"] = {}
                 merged_data[date]["sleep"]["seconds"] = 0
                 merged_data[date]["steps"] = steps
-        
+
         # Sort data by date
         merged_data = dict(sorted(merged_data.items(), key=lambda x: datetime.datetime.strptime(x[0], "%Y-%m-%d")))
-
+        if get_config()["progress_bars"]: progress_bar.close()
         return merged_data
 
     def get_sleep():
@@ -259,6 +272,9 @@ class Analytics:
         cursor.execute("SELECT UNIX_TIME, ACTIVITY FROM TIME_POINTS")
         rows = cursor.fetchall()
 
+        # Establish a progress bar
+        if get_config()["progress_bars"]: progress_bar = tqdm(total=len(rows), desc="Crunching your sleep data")
+
         # Initialize variables to track sleep duration
         sleep_start = None
         sleep_duration = datetime.timedelta()
@@ -267,6 +283,7 @@ class Analytics:
         # Iterate through the rows
         for row in rows:
             unix_time, activity = row
+            if get_config()["progress_bars"]: progress_bar.update(1)
 
             if activity == "sleep":
                 if sleep_start is None:
@@ -299,6 +316,7 @@ class Analytics:
                     sleep_duration = datetime.timedelta()
 
         conn.close()
+        if get_config()["progress_bars"]: progress_bar.close()
 
         return sleep_data
 
@@ -311,11 +329,15 @@ class Analytics:
         cursor.execute("SELECT UNIX_TIME, STEPS FROM TIME_POINTS WHERE STEPS > 0")
         rows = cursor.fetchall()
 
+        # Establish a progress bar
+        if get_config()["progress_bars"]: progress_bar = tqdm(total=len(rows), desc="Crunching your steps data")
+
         # Initialize variables to track steps data
         step_data = {}  # Dictionary to store steps data for each day
 
         # Iterate through the rows
         for row in rows:
+            if get_config()["progress_bars"]: progress_bar.update(1)
             unix_time, steps = row
 
             # Determine the date for the steps data
@@ -332,7 +354,7 @@ class Analytics:
                 step_data[step_date] = steps
 
         conn.close()
-
+        if get_config()["progress_bars"]: progress_bar.close()
         return step_data
 
 def data_reader(location=CSV_LOCATION):
@@ -385,7 +407,6 @@ def data_reader(location=CSV_LOCATION):
     
     with open(CSV_LOCATION, "r") as csv_file:
         reader = csv.reader(csv_file)
-        db = Database(DB_LOCATION)
         data_list = list()
         ERROR_COUNT = int()
         SUCCESSFUL_RUNS = int()
@@ -393,7 +414,7 @@ def data_reader(location=CSV_LOCATION):
         csv_file.seek(0)
         reader = csv.reader(csv_file)
         last_error_print = int()
-        progress_bar = tqdm(total=LENGTH_CSV, desc="Processing CSV")
+        if get_config()["progress_bars"]: progress_bar = tqdm(total=LENGTH_CSV, desc="Processing CSV")
         data = None
 
         for row in reader:
@@ -417,16 +438,21 @@ def data_reader(location=CSV_LOCATION):
                 if data: logger.write(log_type="error", data=(row[2], row[4]))
                 
             if SUCCESSFUL_RUNS % 1000 == 0:
-                progress_bar.update(1000)  # Update the progress bar
-        progress_bar.close()
+                if get_config()["progress_bars"]: progress_bar.update(1000)  # Update the progress bar
+        if get_config()["progress_bars"]: progress_bar.close()
         print("\n Encountered", ERROR_COUNT, "errors during import.")
-        if not READ_ONLY: db.write_data_bulk(data_list=data_list, command="INSERT INTO DATA_POINTS (UNIX_TIME, SOURCE, TYPE, VALUE) VALUES (?, ?, ?, ?)")
+        if not READ_ONLY: 
+            try:
+                db.write_data_bulk(data_list=data_list, command="INSERT INTO DATA_POINTS (UNIX_TIME, SOURCE, TYPE, VALUE) VALUES (?, ?, ?, ?)")
+            except sqlite3.Error as e:
+                print(e)
 
 if __name__ == "__main__":
-    data_reader()
     global db
     db = Database(db_file=DB_LOCATION)
-    db.transfer_data()
-    Analytics.daily_analysis()
+    with db.connection() as conn:
+        data_reader()
+        db.transfer_data()
+        Analytics.daily_analysis()
 
 # todo: fix the "dynamic" data type
