@@ -307,7 +307,10 @@ class Analytics:
             else:
                 if sleep_start is not None:
                     # Calculate sleep duration
-                    sleep_end = unix_time
+                    if unix_time > sleep_end + 120:
+                        logger.write(log_type="error", data=("In sleep calculation Mi Band death anomaly detected, handled properly though data invalid, ID:", unix_time, sleep_date))
+                    else:
+                        sleep_end = unix_time
                     sleep_duration += datetime.timedelta(seconds=(sleep_end - sleep_start))
 
                     # Determine the date for the sleep data
@@ -383,8 +386,6 @@ class Analytics:
         return step_data
 
 def data_reader(location=CSV_LOCATION):
-    logger = Logger()
-
     def type_interpret(type):
         if "heart_rate" in type:
             result = "heart_rate"
@@ -473,7 +474,8 @@ def data_reader(location=CSV_LOCATION):
                 print(e)
 
 if __name__ == "__main__":
-    global db
+    global db, logger
+    logger = Logger()
     db = Database(db_file=DB_LOCATION)
     with db.connection() as conn:
         data_reader()
