@@ -1,11 +1,4 @@
 {
-    "1970-01-01": {
-        "sleep": {
-            "seconds": 1545743146,
-            "hour": "429373h 5min"
-        },
-        "steps": 0
-    },
     "2018-12-25": {
         "sleep": {
             "seconds": 32400,
@@ -92,8 +85,8 @@
     },
     "2019-01-06": {
         "sleep": {
-            "seconds": 33960,
-            "hour": "9h 26min"
+            "seconds": 33240,
+            "hour": "9h 14min"
         },
         "steps": 7225
     },
@@ -1120,8 +1113,8 @@
     },
     "2019-06-02": {
         "sleep": {
-            "seconds": 35400,
-            "hour": "9h 50min"
+            "seconds": 34800,
+            "hour": "9h 40min"
         },
         "steps": 12339
     },
@@ -1372,8 +1365,8 @@
     },
     "2019-07-08": {
         "sleep": {
-            "seconds": 31260,
-            "hour": "8h 41min"
+            "seconds": 31020,
+            "hour": "8h 37min"
         },
         "steps": 6270
     },
@@ -1490,8 +1483,8 @@
     },
     "2019-07-25": {
         "sleep": {
-            "seconds": 9900,
-            "hour": "2h 45min"
+            "seconds": 9660,
+            "hour": "2h 41min"
         },
         "steps": 15933
     },
@@ -1622,8 +1615,8 @@
     },
     "2019-08-13": {
         "sleep": {
-            "seconds": 33840,
-            "hour": "9h 24min"
+            "seconds": 33240,
+            "hour": "9h 14min"
         },
         "steps": 13083
     },
@@ -1789,8 +1782,8 @@
     },
     "2019-09-06": {
         "sleep": {
-            "seconds": 28440,
-            "hour": "7h 54min"
+            "seconds": 27900,
+            "hour": "7h 45min"
         },
         "steps": 5743
     },
@@ -1845,8 +1838,8 @@
     },
     "2019-09-14": {
         "sleep": {
-            "seconds": 35160,
-            "hour": "9h 46min"
+            "seconds": 34920,
+            "hour": "9h 42min"
         },
         "steps": 9974
     },
@@ -1992,8 +1985,8 @@
     },
     "2019-10-05": {
         "sleep": {
-            "seconds": 34080,
-            "hour": "9h 28min"
+            "seconds": 33840,
+            "hour": "9h 24min"
         },
         "steps": 5975
     },
@@ -2139,8 +2132,8 @@
     },
     "2019-10-26": {
         "sleep": {
-            "seconds": 23460,
-            "hour": "6h 31min"
+            "seconds": 22980,
+            "hour": "6h 23min"
         },
         "steps": 16229
     },
@@ -2174,8 +2167,8 @@
     },
     "2019-10-31": {
         "sleep": {
-            "seconds": 31080,
-            "hour": "8h 38min"
+            "seconds": 30840,
+            "hour": "8h 34min"
         },
         "steps": 5229
     },
@@ -2544,8 +2537,8 @@
     },
     "2019-12-23": {
         "sleep": {
-            "seconds": 34800,
-            "hour": "9h 40min"
+            "seconds": 33000,
+            "hour": "9h 10min"
         },
         "steps": 11135
     },
@@ -2593,8 +2586,8 @@
     },
     "2019-12-30": {
         "sleep": {
-            "seconds": 34800,
-            "hour": "9h 40min"
+            "seconds": 33000,
+            "hour": "9h 10min"
         },
         "steps": 9518
     },
@@ -2670,8 +2663,8 @@
     },
     "2020-01-10": {
         "sleep": {
-            "seconds": 35700,
-            "hour": "9h 55min"
+            "seconds": 35340,
+            "hour": "9h 49min"
         },
         "steps": 7301
     },
@@ -2767,8 +2760,8 @@
     },
     "2020-01-24": {
         "sleep": {
-            "seconds": 36480,
-            "hour": "10h 8min"
+            "seconds": 32880,
+            "hour": "9h 8min"
         },
         "steps": 10267
     },
@@ -2830,8 +2823,8 @@
     },
     "2020-02-02": {
         "sleep": {
-            "seconds": 29340,
-            "hour": "8h 9min"
+            "seconds": 29160,
+            "hour": "8h 6min"
         },
         "steps": 364
     },
@@ -2970,8 +2963,8 @@
     },
     "2020-02-22": {
         "sleep": {
-            "seconds": 27540,
-            "hour": "7h 39min"
+            "seconds": 26460,
+            "hour": "7h 21min"
         },
         "steps": 13025
     },
@@ -3019,8 +3012,8 @@
     },
     "2020-02-29": {
         "sleep": {
-            "seconds": 34740,
-            "hour": "9h 39min"
+            "seconds": 34260,
+            "hour": "9h 31min"
         },
         "steps": 5446
     },
@@ -3124,8 +3117,8 @@
     },
     "2020-03-15": {
         "sleep": {
-            "seconds": 33660,
-            "hour": "9h 21min"
+            "seconds": 33420,
+            "hour": "9h 17min"
         },
         "steps": 16523
     },
@@ -3187,15 +3180,15 @@
     },
     "2020-03-24": {
         "sleep": {
-            "seconds": 33180,
-            "hour": "9h 13min"
+            "seconds": 32940,
+            "hour": "9h 9min"
         },
         "steps": 2195
     },
     "2020-03-25": {
         "sleep": {
-            "seconds": 32580,
-            "hour": "9h 3min"
+            "seconds": 32340,
+            "hour": "8h 59min"
         },
         "steps": 8548
     },
@@ -3215,8 +3208,8 @@
     },
     "2020-03-28": {
         "sleep": {
-            "seconds": 33780,
-            "hour": "9h 23min"
+            "seconds": 33180,
+            "hour": "9h 13min"
         },
         "steps": 5962
     },
@@ -3236,8 +3229,8 @@
     },
     "2020-03-31": {
         "sleep": {
-            "seconds": 33900,
-            "hour": "9h 25min"
+            "seconds": 33720,
+            "hour": "9h 22min"
         },
         "steps": 4164
     },
@@ -3404,8 +3397,8 @@
     },
     "2020-04-24": {
         "sleep": {
-            "seconds": 28800,
-            "hour": "8h 0min"
+            "seconds": 28200,
+            "hour": "7h 50min"
         },
         "steps": 10303
     },
@@ -3432,8 +3425,8 @@
     },
     "2020-04-28": {
         "sleep": {
-            "seconds": 26640,
-            "hour": "7h 24min"
+            "seconds": 25620,
+            "hour": "7h 7min"
         },
         "steps": 15733
     },
@@ -3502,8 +3495,8 @@
     },
     "2020-05-08": {
         "sleep": {
-            "seconds": 34620,
-            "hour": "9h 37min"
+            "seconds": 34320,
+            "hour": "9h 32min"
         },
         "steps": 13530
     },
@@ -3628,8 +3621,8 @@
     },
     "2020-05-26": {
         "sleep": {
-            "seconds": 29940,
-            "hour": "8h 19min"
+            "seconds": 29700,
+            "hour": "8h 15min"
         },
         "steps": 11902
     },
@@ -3670,15 +3663,14 @@
     },
     "2020-06-01": {
         "sleep": {
-            "seconds": 33300,
-            "hour": "9h 15min"
+            "seconds": 27840,
+            "hour": "7h 44min"
         },
         "steps": 7009
     },
     "2020-06-02": {
         "sleep": {
-            "seconds": 27180,
-            "hour": "7h 33min"
+            "seconds": 0
         },
         "steps": 8527
     },
@@ -3752,8 +3744,8 @@
     },
     "2020-06-27": {
         "sleep": {
-            "seconds": 37800,
-            "hour": "10h 30min"
+            "seconds": 37200,
+            "hour": "10h 20min"
         },
         "steps": 7860
     },
@@ -3794,8 +3786,8 @@
     },
     "2020-07-03": {
         "sleep": {
-            "seconds": 32640,
-            "hour": "9h 4min"
+            "seconds": 32040,
+            "hour": "8h 54min"
         },
         "steps": 10325
     },
@@ -3815,8 +3807,8 @@
     },
     "2020-07-06": {
         "sleep": {
-            "seconds": 30900,
-            "hour": "8h 35min"
+            "seconds": 30300,
+            "hour": "8h 25min"
         },
         "steps": 8192
     },
@@ -3920,8 +3912,8 @@
     },
     "2020-07-21": {
         "sleep": {
-            "seconds": 36480,
-            "hour": "10h 8min"
+            "seconds": 36240,
+            "hour": "10h 4min"
         },
         "steps": 15470
     },
@@ -3962,8 +3954,8 @@
     },
     "2020-07-27": {
         "sleep": {
-            "seconds": 30900,
-            "hour": "8h 35min"
+            "seconds": 30300,
+            "hour": "8h 25min"
         },
         "steps": 9846
     },
@@ -4004,8 +3996,8 @@
     },
     "2020-08-02": {
         "sleep": {
-            "seconds": 36420,
-            "hour": "10h 7min"
+            "seconds": 36180,
+            "hour": "10h 3min"
         },
         "steps": 2717
     },
@@ -4207,8 +4199,8 @@
     },
     "2020-08-31": {
         "sleep": {
-            "seconds": 34920,
-            "hour": "9h 42min"
+            "seconds": 34740,
+            "hour": "9h 39min"
         },
         "steps": 12339
     },
@@ -4228,8 +4220,8 @@
     },
     "2020-09-03": {
         "sleep": {
-            "seconds": 33300,
-            "hour": "9h 15min"
+            "seconds": 32700,
+            "hour": "9h 5min"
         },
         "steps": 9583
     },
@@ -4333,8 +4325,8 @@
     },
     "2020-09-18": {
         "sleep": {
-            "seconds": 39720,
-            "hour": "11h 2min"
+            "seconds": 39120,
+            "hour": "10h 52min"
         },
         "steps": 11206
     },
@@ -4410,8 +4402,8 @@
     },
     "2020-09-29": {
         "sleep": {
-            "seconds": 34320,
-            "hour": "9h 32min"
+            "seconds": 33720,
+            "hour": "9h 22min"
         },
         "steps": 13123
     },
@@ -4508,8 +4500,8 @@
     },
     "2020-10-13": {
         "sleep": {
-            "seconds": 33120,
-            "hour": "9h 12min"
+            "seconds": 32520,
+            "hour": "9h 2min"
         },
         "steps": 13060
     },
@@ -4655,8 +4647,8 @@
     },
     "2020-11-03": {
         "sleep": {
-            "seconds": 35220,
-            "hour": "9h 47min"
+            "seconds": 34620,
+            "hour": "9h 37min"
         },
         "steps": 4315
     },
@@ -4760,8 +4752,8 @@
     },
     "2020-11-18": {
         "sleep": {
-            "seconds": 36480,
-            "hour": "10h 8min"
+            "seconds": 36240,
+            "hour": "10h 4min"
         },
         "steps": 7323
     },
@@ -4935,8 +4927,8 @@
     },
     "2020-12-13": {
         "sleep": {
-            "seconds": 27720,
-            "hour": "7h 42min"
+            "seconds": 27480,
+            "hour": "7h 38min"
         },
         "steps": 5857
     },
@@ -5068,8 +5060,8 @@
     },
     "2021-01-01": {
         "sleep": {
-            "seconds": 32580,
-            "hour": "9h 3min"
+            "seconds": 32280,
+            "hour": "8h 58min"
         },
         "steps": 11445
     },
@@ -5467,8 +5459,8 @@
     },
     "2021-02-27": {
         "sleep": {
-            "seconds": 30180,
-            "hour": "8h 23min"
+            "seconds": 27060,
+            "hour": "7h 31min"
         },
         "steps": 10738
     },
@@ -5481,8 +5473,8 @@
     },
     "2021-03-01": {
         "sleep": {
-            "seconds": 32160,
-            "hour": "8h 56min"
+            "seconds": 31920,
+            "hour": "8h 52min"
         },
         "steps": 4543
     },
@@ -5509,8 +5501,8 @@
     },
     "2021-03-05": {
         "sleep": {
-            "seconds": 37260,
-            "hour": "10h 21min"
+            "seconds": 37080,
+            "hour": "10h 18min"
         },
         "steps": 2334
     },
@@ -5614,8 +5606,8 @@
     },
     "2021-03-20": {
         "sleep": {
-            "seconds": 38400,
-            "hour": "10h 40min"
+            "seconds": 38160,
+            "hour": "10h 36min"
         },
         "steps": 11520
     },
@@ -5705,8 +5697,8 @@
     },
     "2021-04-02": {
         "sleep": {
-            "seconds": 31860,
-            "hour": "8h 51min"
+            "seconds": 31260,
+            "hour": "8h 41min"
         },
         "steps": 7904
     },
@@ -5754,8 +5746,8 @@
     },
     "2021-04-09": {
         "sleep": {
-            "seconds": 35640,
-            "hour": "9h 54min"
+            "seconds": 35040,
+            "hour": "9h 44min"
         },
         "steps": 12908
     },
@@ -5824,8 +5816,8 @@
     },
     "2021-04-19": {
         "sleep": {
-            "seconds": 29580,
-            "hour": "8h 13min"
+            "seconds": 28980,
+            "hour": "8h 3min"
         },
         "steps": 10310
     },
@@ -5922,8 +5914,8 @@
     },
     "2021-05-03": {
         "sleep": {
-            "seconds": 32760,
-            "hour": "9h 6min"
+            "seconds": 32160,
+            "hour": "8h 56min"
         },
         "steps": 14335
     },
@@ -5992,8 +5984,8 @@
     },
     "2021-05-13": {
         "sleep": {
-            "seconds": 34620,
-            "hour": "9h 37min"
+            "seconds": 34020,
+            "hour": "9h 27min"
         },
         "steps": 5691
     },
@@ -6013,8 +6005,8 @@
     },
     "2021-05-16": {
         "sleep": {
-            "seconds": 30840,
-            "hour": "8h 34min"
+            "seconds": 30600,
+            "hour": "8h 30min"
         },
         "steps": 8607
     },
@@ -6034,8 +6026,8 @@
     },
     "2021-05-19": {
         "sleep": {
-            "seconds": 30060,
-            "hour": "8h 21min"
+            "seconds": 29460,
+            "hour": "8h 11min"
         },
         "steps": 5815
     },
@@ -6139,8 +6131,8 @@
     },
     "2021-06-03": {
         "sleep": {
-            "seconds": 30660,
-            "hour": "8h 31min"
+            "seconds": 30420,
+            "hour": "8h 27min"
         },
         "steps": 14048
     },
@@ -6188,8 +6180,8 @@
     },
     "2021-06-10": {
         "sleep": {
-            "seconds": 30600,
-            "hour": "8h 30min"
+            "seconds": 30360,
+            "hour": "8h 26min"
         },
         "steps": 9729
     },
@@ -6244,8 +6236,8 @@
     },
     "2021-06-18": {
         "sleep": {
-            "seconds": 33960,
-            "hour": "9h 26min"
+            "seconds": 33360,
+            "hour": "9h 16min"
         },
         "steps": 26082
     },
@@ -6321,15 +6313,15 @@
     },
     "2021-06-29": {
         "sleep": {
-            "seconds": 33060,
-            "hour": "9h 11min"
+            "seconds": 32460,
+            "hour": "9h 1min"
         },
         "steps": 22606
     },
     "2021-06-30": {
         "sleep": {
-            "seconds": 31320,
-            "hour": "8h 42min"
+            "seconds": 31080,
+            "hour": "8h 38min"
         },
         "steps": 15634
     },
@@ -6342,8 +6334,8 @@
     },
     "2021-07-02": {
         "sleep": {
-            "seconds": 34380,
-            "hour": "9h 33min"
+            "seconds": 32940,
+            "hour": "9h 9min"
         },
         "steps": 14301
     },
@@ -6370,8 +6362,8 @@
     },
     "2021-07-06": {
         "sleep": {
-            "seconds": 32040,
-            "hour": "8h 54min"
+            "seconds": 31440,
+            "hour": "8h 44min"
         },
         "steps": 22589
     },
@@ -6482,8 +6474,8 @@
     },
     "2021-07-22": {
         "sleep": {
-            "seconds": 30000,
-            "hour": "8h 20min"
+            "seconds": 28500,
+            "hour": "7h 55min"
         },
         "steps": 7545
     },
@@ -6524,22 +6516,22 @@
     },
     "2021-07-28": {
         "sleep": {
-            "seconds": 32760,
-            "hour": "9h 6min"
+            "seconds": 2100,
+            "hour": "0h 35min"
         },
         "steps": 7159
     },
     "2021-07-29": {
         "sleep": {
-            "seconds": 32160,
-            "hour": "8h 56min"
+            "seconds": 3300,
+            "hour": "0h 55min"
         },
         "steps": 10047
     },
     "2021-07-30": {
         "sleep": {
-            "seconds": 29400,
-            "hour": "8h 10min"
+            "seconds": 4140,
+            "hour": "1h 9min"
         },
         "steps": 9614
     },
@@ -6783,22 +6775,22 @@
     },
     "2021-09-03": {
         "sleep": {
-            "seconds": 36000,
-            "hour": "10h 0min"
+            "seconds": 35160,
+            "hour": "9h 46min"
         },
         "steps": 15994
     },
     "2021-09-04": {
         "sleep": {
-            "seconds": 38820,
-            "hour": "10h 47min"
+            "seconds": 38580,
+            "hour": "10h 43min"
         },
         "steps": 7251
     },
     "2021-09-05": {
         "sleep": {
-            "seconds": 31200,
-            "hour": "8h 40min"
+            "seconds": 30600,
+            "hour": "8h 30min"
         },
         "steps": 14407
     },
@@ -6860,8 +6852,8 @@
     },
     "2021-09-14": {
         "sleep": {
-            "seconds": 30420,
-            "hour": "8h 27min"
+            "seconds": 30180,
+            "hour": "8h 23min"
         },
         "steps": 8939
     },
@@ -6888,8 +6880,8 @@
     },
     "2021-09-18": {
         "sleep": {
-            "seconds": 34680,
-            "hour": "9h 38min"
+            "seconds": 34380,
+            "hour": "9h 33min"
         },
         "steps": 5849
     },
@@ -6902,8 +6894,8 @@
     },
     "2021-09-20": {
         "sleep": {
-            "seconds": 31800,
-            "hour": "8h 50min"
+            "seconds": 31500,
+            "hour": "8h 45min"
         },
         "steps": 3771
     },
@@ -7154,15 +7146,15 @@
     },
     "2021-10-26": {
         "sleep": {
-            "seconds": 31020,
-            "hour": "8h 37min"
+            "seconds": 28320,
+            "hour": "7h 52min"
         },
         "steps": 955
     },
     "2021-10-27": {
         "sleep": {
-            "seconds": 31740,
-            "hour": "8h 49min"
+            "seconds": 31440,
+            "hour": "8h 44min"
         },
         "steps": 714
     },
@@ -7462,8 +7454,8 @@
     },
     "2021-12-09": {
         "sleep": {
-            "seconds": 23940,
-            "hour": "6h 39min"
+            "seconds": 18000,
+            "hour": "5h 0min"
         },
         "steps": 7458
     },
@@ -7699,8 +7691,8 @@
     },
     "2022-01-12": {
         "sleep": {
-            "seconds": 29520,
-            "hour": "8h 12min"
+            "seconds": 28500,
+            "hour": "7h 55min"
         },
         "steps": 10423
     },
@@ -7790,8 +7782,8 @@
     },
     "2022-01-25": {
         "sleep": {
-            "seconds": 30420,
-            "hour": "8h 27min"
+            "seconds": 26760,
+            "hour": "7h 26min"
         },
         "steps": 11374
     },
@@ -7804,15 +7796,15 @@
     },
     "2022-01-27": {
         "sleep": {
-            "seconds": 33000,
-            "hour": "9h 10min"
+            "seconds": 32700,
+            "hour": "9h 5min"
         },
         "steps": 2359
     },
     "2022-01-28": {
         "sleep": {
-            "seconds": 32160,
-            "hour": "8h 56min"
+            "seconds": 31860,
+            "hour": "8h 51min"
         },
         "steps": 2474
     },
@@ -7825,8 +7817,8 @@
     },
     "2022-01-30": {
         "sleep": {
-            "seconds": 35940,
-            "hour": "9h 59min"
+            "seconds": 35700,
+            "hour": "9h 55min"
         },
         "steps": 1286
     },
@@ -7909,8 +7901,8 @@
     },
     "2022-02-11": {
         "sleep": {
-            "seconds": 66180,
-            "hour": "18h 23min"
+            "seconds": 9720,
+            "hour": "2h 42min"
         },
         "steps": 3652
     },
@@ -8210,8 +8202,8 @@
     },
     "2022-03-26": {
         "sleep": {
-            "seconds": 36600,
-            "hour": "10h 10min"
+            "seconds": 36300,
+            "hour": "10h 5min"
         },
         "steps": 16492
     },
@@ -8322,8 +8314,8 @@
     },
     "2022-04-11": {
         "sleep": {
-            "seconds": 28800,
-            "hour": "8h 0min"
+            "seconds": 28500,
+            "hour": "7h 55min"
         },
         "steps": 14516
     },
@@ -8497,8 +8489,8 @@
     },
     "2022-05-06": {
         "sleep": {
-            "seconds": 33720,
-            "hour": "9h 22min"
+            "seconds": 33480,
+            "hour": "9h 18min"
         },
         "steps": 14005
     },
@@ -8539,8 +8531,8 @@
     },
     "2022-05-12": {
         "sleep": {
-            "seconds": 25740,
-            "hour": "7h 9min"
+            "seconds": 25440,
+            "hour": "7h 4min"
         },
         "steps": 9335
     },
@@ -8671,8 +8663,8 @@
     },
     "2022-05-31": {
         "sleep": {
-            "seconds": 32340,
-            "hour": "8h 59min"
+            "seconds": 32040,
+            "hour": "8h 54min"
         },
         "steps": 27432
     },
@@ -8720,8 +8712,8 @@
     },
     "2022-06-07": {
         "sleep": {
-            "seconds": 29100,
-            "hour": "8h 5min"
+            "seconds": 28860,
+            "hour": "8h 1min"
         },
         "steps": 15606
     },
@@ -9196,22 +9188,22 @@
     },
     "2022-08-14": {
         "sleep": {
-            "seconds": 27240,
-            "hour": "7h 34min"
+            "seconds": 9960,
+            "hour": "2h 46min"
         },
         "steps": 10625
     },
     "2022-08-15": {
         "sleep": {
-            "seconds": 28980,
-            "hour": "8h 3min"
+            "seconds": 11580,
+            "hour": "3h 13min"
         },
         "steps": 10543
     },
     "2022-08-16": {
         "sleep": {
-            "seconds": 29580,
-            "hour": "8h 13min"
+            "seconds": 29220,
+            "hour": "8h 7min"
         },
         "steps": 12417
     },
@@ -9224,8 +9216,8 @@
     },
     "2022-08-18": {
         "sleep": {
-            "seconds": 36780,
-            "hour": "10h 13min"
+            "seconds": 26820,
+            "hour": "7h 27min"
         },
         "steps": 5017
     },

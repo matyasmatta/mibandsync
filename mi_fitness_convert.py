@@ -8,7 +8,7 @@ import json
 from tqdm import tqdm  # Import tqdm for the progress bar
 import datetime
 import os
-from utils import get_config
+from utils import get_config, correct_nones
 from contextlib import contextmanager
 
 # params
@@ -298,6 +298,9 @@ class Analytics:
         for row in rows:
             batch_count += 1
             unix_time, activity = row
+            # Initialise var
+            if batch_count == 1:
+                sleep_end = unix_time
             if batch_count % 1000 == 0:
                 if get_config()["progress_bars"]: progress_bar.update(1000)
 
@@ -308,28 +311,34 @@ class Analytics:
                     sleep_end = unix_time
             else:
                 if sleep_start is not None:
-                    # Calculate sleep duration
-                    if unix_time > sleep_end + 120:
-                        logger.write(log_type="error", data=("In sleep calculation Mi Band death anomaly detected, handled properly though data invalid, ID:", unix_time, sleep_date))
-                    else:
-                        sleep_end = unix_time
-                    sleep_duration += datetime.timedelta(seconds=(sleep_end - sleep_start))
+                    try:
+                        # Calculate sleep duration
+                        try:
+                            if unix_time > sleep_end + 120:
+                                logger.write(log_type="error", data=("In sleep calculation Mi Band death anomaly detected, handled properly  data invalid, ID:", unix_time, sleep_date))
+                            else:
+                                sleep_end = unix_time
+                        except:
+                            logger.write(log_type="error", data=("In sleep calculation sleep_end resulted in NoneType, handled properly data valid, ID:", unix_time, sleep_date))
+                        sleep_duration += datetime.timedelta(seconds=(sleep_end - sleep_start))
 
-                    # Determine the date for the sleep data
-                    sleep_date = datetime.datetime.utcfromtimestamp(sleep_start).strftime("%Y-%m-%d")
+                        # Determine the date for the sleep data
+                        sleep_date = datetime.datetime.utcfromtimestamp(sleep_start).strftime("%Y-%m-%d")
 
-                    # Update the sleep duration for the corresponding date
-                    sleep_data[sleep_date] = {}
-                    sleep_data[sleep_date]['raw'] = datetime.timedelta()
-                    sleep_data[sleep_date]['bedtime'] = {}
-                    sleep_data[sleep_date]['waketime'] = {}
+                        # Update the sleep duration for the corresponding date
+                        sleep_data[sleep_date] = {}
+                        sleep_data[sleep_date]['raw'] = datetime.timedelta()
+                        sleep_data[sleep_date]['bedtime'] = {}
+                        sleep_data[sleep_date]['waketime'] = {}
 
-                    if sleep_date in sleep_data:
-                        sleep_data[sleep_date]['raw'] += sleep_duration
-                    else:
-                        sleep_data[sleep_date]['raw'] = sleep_duration
-                    sleep_data[sleep_date]['bedtime'] = sleep_start
-                    sleep_data[sleep_date]['waketime'] = sleep_end
+                        if sleep_date in sleep_data:
+                            sleep_data[sleep_date]['raw'] += sleep_duration
+                        else:
+                            sleep_data[sleep_date]['raw'] = sleep_duration
+                        sleep_data[sleep_date]['bedtime'] = sleep_start
+                        sleep_data[sleep_date]['waketime'] = sleep_end
+                    except:
+                        logger.write(log_type="error", data=("In sleep calculation a general error occured, handled properly data invalid, ID:", unix_time, sleep_date))
 
                     # Restart vars
                     sleep_start = None
@@ -480,8 +489,6 @@ if __name__ == "__main__":
     logger = Logger()
     db = Database(db_file=DB_LOCATION)
     with db.connection() as conn:
-        data_reader()
-        db.transfer_data()
         Analytics.daily_analysis()
 
 # todo: fix the "dynamic" data type
