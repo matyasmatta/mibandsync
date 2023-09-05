@@ -1,387 +1,518 @@
-import sqlite3
-import json
-import time as tm
-import datetime
-import numpy as np
+# header
 import csv
-import matplotlib.pyplot as plt
-import pandas as pd
-from scipy.interpolate import interp1d
-from scipy.signal import savgol_filter
-import numpy as np
-import drive
+import sqlite3
+from sqlite3 import Error
+import json
+from tqdm import tqdm  # Import tqdm for the progress bar
+import datetime
+import os
 from utils import get_config, correct_nones
-import pytz
-import warnings
+from contextlib import contextmanager
+from mi_fitness_convert import data_reader
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
+import time
+import july
 
+CSV_LOCATION = r"D:\Zálohy\Exporty\20230821_6481096885_MiFitness_fr1_data_copy\20230821_6481096885_MiFitness_hlth_center_fitness_data.csv"
+DB_LOCATION = r"D:\Dokumenty\Kódování\GitHub-Repozitory\mibandsync\data\main.db"
+IGNORE_ERRORS = True
+READ_ONLY = False
 
 class Data:
-    def __init__(self, timestamps, heart_data=[], steps_data=[], activity_data=[], sleep_data=[], deep_sleep_data = [], rem_sleep_data = [], whole_sleep_data = []):
-        self.heart = heart_data
-        self.steps = steps_data
-        self.timestamps = timestamps
-        self.activity = self.Activity(activity_data, timestamps, sleep_data, deep_sleep_data, rem_sleep_data, whole_sleep_data)
-
-    class Activity:
-        def __init__(self, data, timestamps, sleep_data  = [], deep_sleep_data  = [], rem_sleep_data = [], whole_sleep_data = []):
-            self.raw = data
-            self.type = self.get_type(data)
-            self.timestamps = timestamps
-            if whole_sleep_data:
-                self.sleep = whole_sleep_data
-            elif sleep_data:
-                self.sleep = self.get_sleep(sleep_data, deep_sleep_data, rem_sleep_data) if sleep_data else []
-            else:
-                self.sleep = []
-                raise Warning("No sleep data provided")
-        
-        def get_sleep(self, sleep_data, deep_sleep_data, rem_sleep_data):
-            result = list()
-            for item in self.timestamps:
-                metaresult = {}
-                index = self.timestamps.index(item)
-                metaresult["sleep"] = True if (sleep_data[index] > 20) or (self.raw[index] == "Sleeping") else False
-                try:
-                    metaresult["deep_sleep"] = True if (deep_sleep_data[index] != 128 and deep_sleep_data[index] > 160) else False
-                    metaresult["rem_sleep"] = True if rem_sleep_data[index] > 0 else False
-                except:
-                    pass
-                result.append(metaresult)
-            return result
-
-        def get_type(self, data):
-            result = []
-            prefix = "./activity_type/"
-            activity_config_file = prefix + get_config()["device"].lower().replace(" ", "_") + ".json"
-            with open(activity_config_file) as f:
-                activity_config = json.load(f)
-                activity_config = {value: key for key, value in activity_config.items()} # using inverted dict for easier search
-            for item in data:
-                result.append(activity_config[item]) if item in activity_config else result.append(None)
-            if get_config()["fill_activity_data"]: result = correct_nones(result)
-            return result
-        
-        def get_activity_id(self, timestamp):
-            if timestamp in self.timestamps:
-                index = self.timestamps.index(timestamp)
-                return self.raw[index]
-            else:
-                return None
+    def __init__(self, start_unix, end_unix):
+        self.dict = self.fetch_dict(start_unix, end_unix)
+        self.heart_rate = self.fetch_list(self.dict, "heart_rate")
+        self.steps = self.fetch_list(self.dict, "steps")
+        self.sleep = self.fetch_list(self.dict, "sleep")
+        self.timestamps = list(self.dict.keys())
     
-        def get_activity_type(self, timestamp):
-            if timestamp in self.timestamps:
-                index = self.timestamps.index(timestamp)
-                return self.type[index]
-            else:
-                return None
-            
-    def get_steps(self, timestamp):
-        if timestamp in self.timestamps:
-            index = self.timestamps.index(timestamp)
-            return self.steps[index]
-        else:
-            return None
+    def fetch_dict(self, start_unix, end_unix):
+        with db.connection() as conn:
+            cursor = db.conn.cursor()
+            cursor.execute("SELECT UNIX_TIME, STEPS, ACTIVITY, HEART_RATE FROM TIME_POINTS WHERE UNIX_TIME BETWEEN ? AND ?", (start_unix, end_unix))
+            rows = cursor.fetchall()
+            data_dict = dict()
+            for row in rows:
+                unix_time, steps, activity, heart_rate = row
+                # Assuming unix_time is the date and activity is the sleep value
+                # Adjust this based on your table structure
+                data_dict[unix_time] = {"sleep": activity, "steps": steps, "heart_rate": heart_rate}
+            return data_dict
         
-    def get_heartrate(self, timestamp):
-        if timestamp in self.timestamps:
-            index = self.timestamps.index(timestamp)
-            return self.heart[index]
-        else:
-            return None
-        
-    def get_date(self, timestamp, format = False):
-        if timestamp in self.timestamps:
-            if format:
-                formatted_date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%dth %B")
-                return formatted_date
-            else:
-                time = datetime.datetime.utcfromtimestamp(timestamp).isoformat()
-                return time[0:10]
-        else:
-            return None
-        
-    def get_utc_time(self, timestamp):
-        if timestamp in self.timestamps:
-            time = datetime.datetime.utcfromtimestamp(timestamp).isoformat()
-            return time
-        else:
-            return None
-        
-    def get_local_time(self, timestamp):
-        # Convert Unix timestamp to datetime object
-        dt = datetime.datetime.fromtimestamp(timestamp)
+    def fetch_list(self, data_dict=dict, type=type):
+        data_list = list()
+        for item in data_dict:
+            data_list.append(data_dict[item][type])
+        return data_list
 
-        # Get the local time zone
-        local_timezone = pytz.timezone('Europe/Prague')
-
-        # Convert datetime object to local time
-        local_time = dt.astimezone(local_timezone).strftime('%Y-%m-%dT%H:%M:%S')
-        if timestamp in self.timestamps:
-            return local_time
-        else:
-            warnings.warn("Data object function received data not included in self, may cause problems in other functions.", Warning)
-            return local_time
-        
-    def get_timestamp(self, date):
-        # supports either date or time specifically (for ease of use)
-        if len(date) == 10:
-            time = datetime.datetime.strptime(date, '%Y-%m-%d')
-        else:
-            time = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
-
-        timestamp = (time - datetime.datetime(1970, 1, 1)).total_seconds()
-        if timestamp not in self.timestamps:
-            warnings.warn("Timestamp provided is not in Data object, function will default to the closest one.", ImportWarning)
-            if timestamp > max(self.timestamps):
-                timestamp = max(self.timestamps)
-            elif timestamp < min(self.timestamps):
-                timestamp = min(self.timestamps)
-            else:
-                raise ValueError("When handling this exception an error occured.")
-        return timestamp
-        
-    def get_midnight(self, zone="00:00:00"): # Set the UTC time which should be marked as midnight (22:00:00 for CEST)
+    def get_midnight(self, zone="22:00:00"): # Set the UTC time which should be marked as midnight (22:00:00 for CEST)
         midnights, days = list(), list()
         for item in self.timestamps:
-            if self.get_utc_time(item).endswith(zone):
+            current_time = datetime.datetime.utcfromtimestamp(item).isoformat()
+            if current_time.endswith(zone):
                 midnights.append(item)
                 correction_time = 86400 - (int(zone[0:2])*60*60) # There needs to be correction so that it's local time
-                days.append(self.get_date(item+correction_time))
+                days.append(datetime.datetime.utcfromtimestamp(item+correction_time).isoformat()[0:10])
+        if midnights == []:
+            logger.write(log_type="error", data="When getting midnight data in range Data, none were found, Tools functions might be broken.")
         return midnights, days # Returns the UNIX times for midnights and returns which days those are
-    
-    def range(self, start_time, end_time):
-        if end_time < start_time:
-            raise ValueError("Start time is after end time, code would generate empty Data object.")
-        filtered_heart = []
-        filtered_steps = []
-        filtered_timestamps = []
-        filtered_activity = []
-        filtered_sleep = []
-    
-        for i in range(len(self.timestamps)):
-            timestamp = self.timestamps[i]
-            if start_time <= timestamp <= end_time:
-                filtered_heart.append(self.heart[i])
-                filtered_steps.append(self.steps[i])
-                filtered_timestamps.append(timestamp)
-                filtered_activity.append(self.activity.raw[i])
-                filtered_sleep.append(self.activity.sleep[i])
-        
-        return Data(heart_data=filtered_heart, steps_data=filtered_steps, timestamps=filtered_timestamps, activity_data=filtered_activity, whole_sleep_data=filtered_sleep)
 
-def daily_summary(data):
-    steps_list, heart_list = list(), list()
-    timestamps, datums = data.get_midnight("22:00:00")
+class Logger:
+    def __init__(self, max_file_size_bytes=10 * 1024 * 1024):
+        self.filename = "main.log"
+        self.max_file_size_bytes = max_file_size_bytes
+        self.check_and_create_log_file()
 
-    for index in range(len(timestamps)):
-        bottom_limit = timestamps[index]
-        upper_limit = timestamps[index+1] if index+1 < len(timestamps) else max(data.timestamps)
-        filtered_data = data.range(bottom_limit, upper_limit)
-        print(filtered_data)
-        final_data = [item for item in filtered_data.steps if item is not None]
-        final_data = sum(final_data)
-        steps_list.append(final_data)
+    def check_and_create_log_file(self):
+        if not os.path.isfile(self.filename):
+            with open(self.filename, "w") as file:
+                file.write("")  # Create an empty log file if it doesn't exist
 
-    for index in range(len(timestamps)):
-        bottom_limit = timestamps[index]
-        upper_limit = timestamps[index+1] if index+1 < len(timestamps) else max(data.timestamps)
-        filtered_data = data.range(bottom_limit, upper_limit)
-        print(filtered_data)
-        final_data = [item for item in filtered_data.steps if item is not None]
-        final_data = round(np.average(final_data))
-        heart_list.append(final_data)
+    def get_log_file_size(self):
+        return os.path.getsize(self.filename) if os.path.exists(self.filename) else 0
 
-    with open("./data/daily.csv", "a", newline="") as f:
-        writer = csv.writer(f)
-        # verify row
+    def write(self, log_type="error", data="", timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+
+        file_size = self.get_log_file_size()
+        if file_size >= self.max_file_size_bytes:
+            raise ValueError(f"Log file size exceeds {self.max_file_size_bytes} bytes")
+
+        with open(self.filename, "a") as file:
+            log_entry = f"{timestamp} [{log_type.upper()}]: {data}\n"
+            file.write(log_entry)
+
+class Database:
+    @contextmanager
+    def connection(self):
+        """A context manager for database connections"""
         try:
-            df = pd.read_csv("./data/daily.csv")
-            if df.empty:
-                writer.writerow(("Date", "Steps", "Heart"))
-        except:
-            writer.writerow(("Date", "Steps", "Heart"))
-        writer.writerows(zip(datums, steps_list, heart_list))
+            if not self.conn:
+                self.conn = self.create_connection()
+            yield self.conn
+        finally:
+            if self.conn:
+                self.conn.close()
 
-    def create_dict(datums, steps_list, heart_list):
-        result = {}
-        for i in range(len(datums)):
-            result[datums[i]] = {}
-            result[datums[i]]["steps"] = steps_list[i]
-            result[datums[i]]["heart"] = heart_list[i]
-        return result
-    
-    return create_dict(datums, steps_list, heart_list)
+    def __init__(self, db_file):
+        self.db_file = db_file
+        self.conn = self.create_connection()
+        self.create_table()  # Ensure the table exists when an instance is created
 
-def data_read(cursor):
-    # fetch sqlite
-    rows = cursor.fetchall()
+    def create_connection(self):
+        """ Create a database connection to a SQLite database """
+        conn = None
+        try:
+            # Attempt to connect to the database
+            conn = sqlite3.connect(self.db_file)
 
-    # variable initilialisation
-    timestamp = []
-    device_id = []
-    user_id = []
-    raw_intensity = []
-    steps = []
-    raw_kind = []
-    heart_rate = []
-    unknown_1 = []
-    sleep = []
-    deep_sleep = []
-    rem_sleep = []
-    utc_time = []
+            # Check if the database is locked by trying to execute a simple query
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1;")
+            cursor.close()
 
-    if get_config()["device"] == "Mi Band 7":
-        # new reader (2023-07-02)
-        for row in rows:
-            # append data
-            timestamp.append(row[0])
-            device_id.append(row[1])
-            user_id.append(row[2])
-            raw_intensity.append(row[3])
-            steps.append(row[4]) if row[4] > 0 else steps.append(None)
-            raw_kind.append(row[5]) 
-            heart_rate.append(row[6]) if 250 > row[6] > 10 else heart_rate.append(None)
-            unknown_1.append(row[7])
-            sleep.append(row[8])
-            deep_sleep.append(row[9]) if row[9] != 128 else deep_sleep.append(0)
-            rem_sleep.append(row[10]) if row[10] != 128 else rem_sleep.append(0)
-            utc_time.append(datetime.datetime.utcfromtimestamp(row[0]).isoformat())
-        
+            if get_config()["show_sql_version"]:
+                print("Connecting to database, current version of SQLite:", sqlite3.version)
 
-    if get_config()["device"] == "Amazfit Band 5":
-        for row in rows:
-            # append data
-            timestamp.append(row[0])
-            steps.append(row[4])
-            heart_rate.append(row[6])
-            raw_kind.append(row[5])
-
-    return timestamp, device_id, user_id, raw_intensity, steps, raw_kind, heart_rate, unknown_1, sleep, deep_sleep, rem_sleep
+            return conn
+        except sqlite3.OperationalError as e:
+            # Database is locked or some other operational error occurred
+            print("SQLite operational error:", e)
+            return None
 
 
-def csv_write(data, name = "./data/data.csv"):
-    time_stamps = data.timestamps
-    with open(name, "a", newline='') as f:
-        writer = csv.writer(f)
-        if f.tell() == 0:  # Check if the file is empty
-            writer.writerow(("Time", "Heart", "Steps"))  # Write the header if the file is empty
-        for item in time_stamps:
-            unix = item
-            time = data.get_local_time(item)
-            heart = data.get_heartrate(item)
-            steps = data.get_steps(item)
-            activity_id = data.activity.get_activity_id(item)
-            activity_type = data.activity.get_activity_type(item)
-            writer.writerow((unix, time, heart, steps, activity_id, activity_type))
-
-def init(location=""):
-    if location == "":
-        # initialisation from config.json file
-        if get_config()["update_local_db"]:
+    def create_table(self):
+        """ Create the DATA_POINTS table if it doesn't exist """
+        if self.conn:
             try:
-                location = drive.get_folder(get_config()["data_folder_id"], api_key= get_config()["api_key"])
-            except:
-                location = "data.db"
-                warnings.warn("Something went wrong when accessing the Google Drive")
-        else:
-            location = "data.db"
+                cursor = self.conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS DATA_POINTS (
+                        UNIX_TIME INTEGER,
+                        SOURCE TEXT,
+                        TYPE TEXT,
+                        VALUE INTEGER
+                    )
+                ''')
+                self.conn.commit()
+            except sqlite3.Error as e:
+                print(e)
 
-    # the function can read from CSV, JSON and SQLITE DB files automatically
-    # filetype does not need to be specified, only the location (can be relative)
-    location_type = location.split(".")[-1]
-    
-    # initialise variables
-    timestamp = []
-    device_id = []
-    user_id = []
-    raw_intensity = []
-    steps = []
-    raw_kind = []
-    heart_rate = []
-    unknown_1 = []
-    sleep = []
-    deep_sleep = []
-    rem_sleep = []
+    def write_data(self, data_list):
+        if self.conn:
+            try:
+                cursor = self.conn.cursor()
+                cursor.execute('''
+                    INSERT INTO DATA_POINTS (UNIX_TIME, SOURCE, TYPE, VALUE)
+                    VALUES (?, ?, ?, ?)
+                ''', data_list)
+                self.conn.commit()
+            except sqlite3.Error as e:
+                print(e)
+        
+    def write_data_bulk(self, command, data_list):
+        if self.conn:
+            try:
+                cursor = self.conn.cursor()
+                cursor.executemany(command, data_list)
+                self.conn.commit()
+            except sqlite3.Error as e:
+                print(e)
 
-    if location_type == "db":
-        global cursor
-        conn = sqlite3.connect(location)
-        cursor = conn.cursor()
-        if get_config()["device"] == "Amazfit Band 5":
-            table_name = 'MI_BAND_ACTIVITY_SAMPLE'
-        elif get_config()["device"] == "Mi Band 7":
-            table_name = 'HUAMI_EXTENDED_ACTIVITY_SAMPLE'
-        cursor.execute(f'SELECT * FROM {table_name}')
-        timestamp, device_id, user_id, raw_intensity, steps, raw_kind, heart_rate, unknown_1, sleep, deep_sleep, rem_sleep = data_read(cursor)
+    def close_connection(self):
+        if self.conn:
+            self.conn.close()        
 
-    elif location_type == "csv":
-        with open(location, "r") as f:
-            reader = csv.reader(f)
-            next(reader)
-            for row in reader:
-                steps.append(int(row[2])) if row[2] != "" else steps.append(None)
-                heart_rate.append(int(row[1])) if row[1] != "" else heart_rate.append(None)
-                timestamp.append(int(datetime.datetime.timestamp(datetime.datetime.strptime(row[0],"%Y-%m-%dT%H:%M:%S"))))
+    def transfer_data(self):
+        try:
+            # Create a cursor for each database connection
+            source_cursor = self.conn.cursor()
+            destination_cursor = self.conn.cursor()
 
-    elif location_type == "json":
-        with open(location, "r") as f:
-            data = json.load(f)
-            supported_items = data[str(0)].keys()
-            for i in range(len(data)):
-                heart_rate.append(data[str(i)].get("heart", None) if "heart" in supported_items else None)
-                timestamp.append(data[str(i)].get("unix_time", None) if "unix_time" in supported_items else None)
-                steps.append(data[str(i)].get("steps", None) if "steps" in supported_items else None)
+            # Retrieve data from the source database (adjust the query as needed)
+            source_cursor.execute('SELECT UNIX_TIME, SOURCE, TYPE, VALUE FROM DATA_POINTS ORDER BY UNIX_TIME')
+            rows = source_cursor.fetchall()
 
+            # Transform and insert data into the destination database
+            i = 1
+            prev_unix_time = int()
+            data_list = list()
+            sleep_time = str()
+            prev_activity = str()
 
-    data = Data(timestamps=timestamp, steps_data=steps, heart_data=heart_rate, activity_data=raw_kind, sleep_data=sleep, deep_sleep_data = deep_sleep, rem_sleep_data = rem_sleep)
-    return data
+            if get_config()["progress_bars"]: progress_bar = tqdm(total=len(rows), desc="Sorting and processing SQL")
+        
+            while i < len(rows):
+                try:
+                    test = rows[i]
+                except:
+                    break
+                steps, activity, heart_rate, calories = None, None, None, None
+                while True:
+                    try:
+                        test = rows[i]
+                    except:
+                        break
+                    unix_time, source, data_type, value = rows[i]
+                    if data_type == "steps":
+                        steps = value
+                    elif data_type == "sleep":
+                        activity = "sleep"
+                        prev_activity = "sleep"
+                        sleep_time = unix_time
+                        sleep_lenght = value
+                    elif data_type == "heart_rate":
+                        heart_rate = value
+                    elif data_type == "calories":
+                        calories = value
+                    elif data_type == "intensity":
+                        activity = "exercise"
 
-def heart_rate_plot(data, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = False, fancy_ticks = True, show_high_hr = 90, correct_midnights = True):
-
-    plt.figure(figsize=figsize)
-
-    x_points = data.timestamps
-    y_points = data.heart
-    
-    y_points_smooth = correct_nones(y_points)
-    y_points_smooth = savgol_filter(y_points_smooth, 21, 2)
-    x_points = x_points[0:-1]
-    y_points_smooth = y_points_smooth[0:-1]
-
-    midnight_timestamps , _ = data.get_midnight(zone=zone)
-    labels = list()
-
-    if fancy_ticks:
-        for item in midnight_timestamps: 
-            labels.append(data.get_date(item,format="%dth %B"))
-    if show_sleep:
-        if not data.activity.sleep:
-            raise Warning("No sleep data provided but a show_sleep function triggered")
-        else:
-            for item in data.timestamps:
-                if data.activity.sleep[data.timestamps.index(item)]["sleep"] == True:
-                    plt.axvspan(item, item+60, facecolor='blue', alpha=0.3)
-    if show_high_hr:
-        if not data.heart:
-            raise Warning("No heartrate data provided but a show_high_hr function triggered")
-        for item in data.timestamps:
-            hrrate = data.get_heartrate(item)
-            if hrrate:
-                if hrrate > show_high_hr:
-                    plt.axvspan(item, item+60, facecolor='orange', alpha=0.3)
+                    if prev_activity == "sleep" and unix_time < sleep_time + sleep_lenght:
+                        activity = "sleep"
+                        prev_activity = "sleep"
+                    
+                    try:
+                        next_unix_time, _, _, _,  = rows[i+1]
+                    except:
+                        i += 1
+                        break
+                    i += 1
+                    if i % 1000 == 0:
+                        if get_config()["progress_bars"]: progress_bar.update(1000)  # Update the progress bar
+                    if next_unix_time != unix_time and i > 2:
+                        human_time = datetime.datetime.utcfromtimestamp(unix_time).strftime("%Y-%m-%d %H:%M:%S")
+                        data_list.append((unix_time, human_time, source, steps, activity, heart_rate, calories))
+                        if len(data_list) > 10000:
+                            if not READ_ONLY: self.write_data_bulk(data_list=data_list, command='INSERT INTO TIME_POINTS (UNIX_TIME, HUMAN_TIME, SOURCE, STEPS, ACTIVITY, HEART_RATE, CALORIES) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                            data_list = list()
+                        self.conn.commit()
+                        break
             
-    plt.xticks(midnight_timestamps, labels, ha='right')
-    plt.ylim(round(min(y_points_smooth)-offset), round(max(y_points_smooth)+offset))
-    plt.xlim(x_points[0], x_points[-1])
-    plt.plot(x_points, y_points_smooth)
-    plt.savefig("./data/figure.png", dpi=dpi) if save else None
-    plt.show()
+            if get_config()["progress_bars"]: 
+                progress_bar.update(len(rows)-i+100)
+                progress_bar.close()
+            self.conn.cursor().execute("DELETE FROM TIME_POINTS WHERE UNIX_TIME = 0 OR UNIX_TIME > 2000000000")
 
-    tm.sleep(20)
+        except sqlite3.Error as e:
+            print("SQLite error:", e)
+        finally:
+            # Close database connections
+            source_cursor.close()
+            destination_cursor.close()
+
+class Utils:
+    def get_timestamp(time, offset=0): # where time is YYYY-MM-DD(THH:MM:SS)
+        # supports either date or time specifically (for ease of use)
+        if len(time) == 10:
+            time = datetime.datetime.strptime(time, '%Y-%m-%d')
+        else:
+            time = datetime.datetime.strptime(time, '%Y-%m-%dT%H:%M:%S')
+        time_change = datetime.timedelta(hours=offset)
+        time = time + time_change
+        timestamp = (time - datetime.datetime(1970, 1, 1)).total_seconds()
+        return timestamp
+
+    def timedelta_to_human_readable(timedelta_obj):
+        seconds = int(timedelta_obj.total_seconds())
+        hours, remainder = divmod(seconds, 3600)
+        minutes, _ = divmod(remainder, 60)
+        return f"{hours}h {minutes}min"
+
+class Analytics:
+    def daily_analysis(timezone=0):
+        sleep_data = Analytics.get_sleep()
+        steps_data = Analytics.get_steps()
+        data = Analytics.merge_data(sleep_data, steps_data)
+        if get_config()["mi_fitness_json_out"] == True:
+            with open("json_out/daily_summary.json", "w") as f: 
+                json.dump(data, f, indent=4)
+        Analytics.data_to_db(data)
+    
+    def data_to_db(data):
+        if db.conn:
+            try:
+                human_time, unix_time, steps, sleep = list(), list(), list(), list()
+                for key in data.keys():
+                    human_time.append(key)
+                    unix_time.append(Utils.get_timestamp(key))
+                    steps.append(data[key]["steps"])
+                    sleep.append(data[key]["sleep"]["seconds"])
+
+                cursor = db.conn.cursor()
+                cursor.executemany('''
+                    INSERT INTO DAILY_SUMMARY (UNIX_TIME, HUMAN_TIME, STEPS, SLEEP)
+                    VALUES (?, ?, ?, ?)
+                ''', zip(unix_time, human_time, steps, sleep))
+                db.conn.commit()
+            except sqlite3.Error as e:
+                print(e)
+
+    def merge_data(sleep_data, steps_data):
+        merged_data = {}  # Initialize the merged data dictionary
+        if get_config()["progress_bars"]: progress_bar = tqdm(total=len(sleep_data.items()), desc="Merging data into a summary")
+
+        # Iterate through the date keys in sleep_data and merge the values
+        for date, sleep_seconds in sleep_data.items():
+            if date not in merged_data:
+                merged_data[date] = {}
+            merged_data[date]["sleep"] = {}    
+            merged_data[date]["sleep"]["seconds"] = int(sleep_seconds.get("raw", datetime.timedelta()).total_seconds())
+            merged_data[date]["sleep"]["hour"] = Utils.timedelta_to_human_readable(sleep_seconds["raw"])
+            merged_data[date]["steps"] = steps_data.get(date, 0)
+            if get_config()["progress_bars"]: progress_bar.update(1)
+
+        # Iterate through the date keys in steps_data and add any missing dates to merged_data
+        for date, steps in steps_data.items():
+            if date not in merged_data:
+                merged_data[date] = {}
+                merged_data[date]["sleep"] = {}
+                merged_data[date]["sleep"]["seconds"] = 0
+                merged_data[date]["steps"] = steps
+
+        # Sort data by date
+        merged_data = dict(sorted(merged_data.items(), key=lambda x: datetime.datetime.strptime(x[0], "%Y-%m-%d")))
+        if get_config()["progress_bars"]: progress_bar.close()
+        return merged_data
+
+    def get_sleep():
+        # Create a connection to the SQLite database
+        conn = db.create_connection()
+        cursor = conn.cursor()
+
+        # Query the database to retrieve relevant data
+        cursor.execute("SELECT UNIX_TIME, ACTIVITY FROM TIME_POINTS")
+        rows = cursor.fetchall()
+
+        # Establish a progress bar
+        if get_config()["progress_bars"]: progress_bar = tqdm(total=len(rows), desc="Crunching your sleep data")
+
+        # Initialize variables to track sleep duration
+        sleep_start = None
+        sleep_duration = datetime.timedelta()
+        sleep_data = {}  # Dictionary to store sleep durations for each day
+        batch_count = 0
+
+        # Iterate through the rows
+        for row in rows:
+            batch_count += 1
+            unix_time, activity = row
+            # Initialise var
+            if batch_count == 1:
+                sleep_end = unix_time
+            if batch_count % 1000 == 0:
+                if get_config()["progress_bars"]: progress_bar.update(1000)
+
+            if activity == "sleep":
+                if sleep_start is None:
+                    sleep_start = unix_time
+                else:
+                    sleep_end = unix_time
+            else:
+                if sleep_start is not None:
+                    try:
+                        # Calculate sleep duration
+                        try:
+                            if unix_time > sleep_end + 120:
+                                logger.write(log_type="error", data=("In sleep calculation Mi Band death anomaly detected, handled properly  data invalid, ID:", unix_time, sleep_date))
+                            else:
+                                sleep_end = unix_time
+                        except:
+                            logger.write(log_type="error", data=("In sleep calculation sleep_end resulted in NoneType, handled properly data valid, ID:", unix_time, sleep_date))
+                        sleep_duration += datetime.timedelta(seconds=(sleep_end - sleep_start))
+
+                        # Determine the date for the sleep data
+                        sleep_date = datetime.datetime.utcfromtimestamp(sleep_start).strftime("%Y-%m-%d")
+
+                        # Update the sleep duration for the corresponding date
+                        sleep_data[sleep_date] = {}
+                        sleep_data[sleep_date]['raw'] = datetime.timedelta()
+                        sleep_data[sleep_date]['bedtime'] = {}
+                        sleep_data[sleep_date]['waketime'] = {}
+
+                        if sleep_date in sleep_data:
+                            sleep_data[sleep_date]['raw'] += sleep_duration
+                        else:
+                            sleep_data[sleep_date]['raw'] = sleep_duration
+                        sleep_data[sleep_date]['bedtime'] = sleep_start
+                        sleep_data[sleep_date]['waketime'] = sleep_end
+                    except:
+                        logger.write(log_type="error", data=("In sleep calculation a general error occured, handled properly data invalid, ID:", unix_time, sleep_date))
+
+                    # Restart vars
+                    sleep_start = None
+                    sleep_end = None
+                    sleep_duration = datetime.timedelta()
+
+        # Ensure the progress bar reaches 100% for any remaining rows
+        if get_config()["progress_bars"] and batch_count > 0:
+            progress_bar.update(batch_count)
+        conn.close()
+        if get_config()["progress_bars"]: progress_bar.close()
+
+        return sleep_data
+
+    def get_steps():
+        # Create a connection to the SQLite database
+        conn = db.create_connection()
+        cursor = conn.cursor()
+
+        # Query the database to retrieve relevant data where STEPS > 0
+        cursor.execute("SELECT UNIX_TIME, STEPS FROM TIME_POINTS WHERE STEPS > 0")
+        rows = cursor.fetchall()
+
+        # Establish a progress bar
+        if get_config()["progress_bars"]: progress_bar = tqdm(total=len(rows), desc="Crunching your steps data")
+
+        # Initialize variables to track steps data
+        step_data = {}  # Dictionary to store steps data for each day
+        batch_count = 0
+        # Iterate through the rows
+        for row in rows:
+            if batch_count % 1000 == 0:
+                if get_config()["progress_bars"]:
+                    progress_bar.update(1000)
+            unix_time, steps = row
+
+            # Determine the date for the steps data
+            step_date = datetime.datetime.utcfromtimestamp(unix_time).strftime("%Y-%m-%d")
+
+            # Update the steps data for the corresponding date
+
+            if steps > 200:
+                steps = 0
+
+            if step_date in step_data:
+                step_data[step_date] += steps
+            else:
+                step_data[step_date] = steps
+            batch_count += 1
+
+        conn.close()
+        # Ensure the progress bar reaches 100% for any remaining rows
+        if get_config()["progress_bars"]:
+            progress_bar.update(1000)
+        if get_config()["progress_bars"]: progress_bar.close()
+        return step_data
+
+class Tools:
+    def heart_rate_plot(data, start_unix, end_unix, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = True, fancy_ticks = True, show_high_hr = 90, correct_midnights = True):
+        data = Data(start_unix, end_unix)
+        plt.figure(figsize=figsize)
+
+        x_points = data.timestamps
+        y_points = data.heart_rate
+        
+        y_points_smooth = correct_nones(y_points)
+        y_points_smooth = savgol_filter(y_points_smooth, 21, 2)
+        x_points = x_points[0:-1]
+        y_points_smooth = y_points_smooth[0:-1]
+
+        midnight_timestamps , _ = data.get_midnight(zone=zone)
+        labels = list()
+
+        if fancy_ticks:
+            for item in midnight_timestamps: 
+                labels.append(datetime.datetime.utcfromtimestamp(item).strftime("%dth %B"))
+                
+        if show_sleep:
+            if not data.sleep:
+                raise Warning("No sleep data provided but a show_sleep function triggered")
+            else:
+                for item in data.timestamps:
+                    if data.dict[item]["sleep"] == "sleep":
+                        plt.axvspan(item, item+60, facecolor='blue', alpha=0.3)
+        if show_high_hr:
+            if not data.heart_rate:
+                raise Warning("No heartrate data provided but a show_high_hr function triggered")
+            for item in data.timestamps:
+                hrrate = data.dict[item]["heart_rate"]
+                if hrrate:
+                    if hrrate > show_high_hr:
+                        plt.axvspan(item, item+60, facecolor='orange', alpha=0.3)
+                
+        plt.xticks(midnight_timestamps, labels, ha='right')
+        plt.ylim(round(min(y_points_smooth)-offset), round(max(y_points_smooth)+offset))
+        plt.xlim(x_points[0], x_points[-1])
+        plt.plot(x_points, y_points_smooth)
+        plt.savefig("./data/figure.png", dpi=dpi) if save else None
+        plt.show()
+
+        time.sleep(20)
+
+    def heat_map(start_unix, end_unix, datatype):
+        def daily_summary(start_unix, end_unix):
+            with db.connection() as conn:
+                cursor = db.conn.cursor()
+                cursor.execute("SELECT UNIX_TIME, HUMAN_TIME, STEPS, AVERAGE_HR, SLEEP FROM DAILY_SUMMARY WHERE UNIX_TIME BETWEEN ? AND ?", (start_unix, end_unix))
+                rows = cursor.fetchall()
+                data_dict = dict()
+                for row in rows:
+                    unix_time, human_time, steps, heart_rate, sleep = row
+                    # Assuming unix_time is the date and activity is the sleep value
+                    # Adjust this based on your table structure
+                    data_dict[human_time] = {"sleep": sleep, "steps": steps, "heart_rate": heart_rate}
+                return data_dict
+        def get_time(data):
+            return list(data.keys())
+        def get_val(data, datatype="steps"):
+            result = list()
+            for item in data:
+                result.append(data[item][datatype])
+            return result
+
+        data = daily_summary(start_unix, end_unix)
+        dates = get_time(data)
+        values = get_val(data, datatype)
+        heatmap = july.heatmap(dates, values, title="Daily summary of steps", cmap="golden", month_grid=False)
+        plt.show()
+        time.sleep(20)
 
 if __name__ == "__main__":
-    # csv_write(data)
-    data = init()
-    # as of 2023-07-02 data is no longer global (hence you can get specific ranges using the inbuild data.range())
-    heart_rate_plot(data.range(data.get_timestamp("2023-07-10"), data.get_timestamp("2023-07-20")), show_sleep=True)
-    # please note that the above method will use UTC time so there will be overflow, if you want to avoid it you can specify the time directly ("2023-06-27T22:00:00")
+    global db, logger, data
+    logger = Logger()
+    db = Database(DB_LOCATION)
+    # Tools.heart_rate_plot(start_unix=1684823820, end_unix=1685379900)
+    Tools.heat_map(start_unix=1656700800, end_unix=1686700800, datatype="steps")

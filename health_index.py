@@ -1,5 +1,5 @@
 import analysis
-import main
+import old_main
 import numpy as np
 from datetime import datetime, timedelta
 from utils import get_config
@@ -25,8 +25,8 @@ def calculate_mhi(start_date, end_date):
         return date_list
     
     date_list = get_range()
-    data = main.init()
-    daily_summary = main.daily_summary(data)
+    data = old_main.init()
+    daily_summary = old_main.daily_summary(data)
     sl_to_sleep = analysis.get_time_to_asleep(data)
     sl_length = analysis.get_sleep_length(data, sl_to_sleep)
     result_index = float()

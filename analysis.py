@@ -111,8 +111,8 @@ def get_time_to_asleep(data, json_out=False, debug=False):
 def get_sleep_length(data, edges={}):
     if edges == {}:
         # Only for emergency-cases
-        import main
-        edges = get_time_to_asleep(main.init("data.db"))
+        import old_main
+        edges = get_time_to_asleep(old_main.init("data.db"))
 
     # This function requires data from get_time_to_asleep() to know the points when user went asleep
     formatted_dictionary = init(data)
@@ -156,5 +156,5 @@ def get_sleep_length(data, edges={}):
     return output
 
 if __name__ == "__main__":
-    import main
-    get_sleep_length(data=main.init("data.db"), json_out=True)
+    import old_main
+    get_sleep_length(data=old_main.init("data.db"), json_out=True)
