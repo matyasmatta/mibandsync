@@ -6,7 +6,7 @@ import json
 from tqdm import tqdm  # Import tqdm for the progress bar
 import datetime
 import os
-from utils import get_config, correct_nones
+from utils import get_config, correct_nones, Logger
 from contextlib import contextmanager
 from mi_fitness_convert import data_reader
 import matplotlib.pyplot as plt
@@ -14,8 +14,8 @@ from scipy.signal import savgol_filter
 import time
 import july
 
-CSV_LOCATION = r"D:\Zálohy\Exporty\20230821_6481096885_MiFitness_fr1_data_copy\20230821_6481096885_MiFitness_hlth_center_fitness_data.csv"
-DB_LOCATION = r"D:\Dokumenty\Kódování\GitHub-Repozitory\mibandsync\data\main.db"
+CSV_LOCATION = r"E:\mibandsync_data\20230821_6481096885_MiFitness_hlth_center_fitness_data.csv"
+DB_LOCATION = r"E:\mibandsync_data\main.db"
 IGNORE_ERRORS = True
 READ_ONLY = False
 
@@ -57,32 +57,6 @@ class Data:
         if midnights == []:
             logger.write(log_type="error", data="When getting midnight data in range Data, none were found, Tools functions might be broken.")
         return midnights, days # Returns the UNIX times for midnights and returns which days those are
-
-class Logger:
-    def __init__(self, max_file_size_bytes=10 * 1024 * 1024):
-        self.filename = "main.log"
-        self.max_file_size_bytes = max_file_size_bytes
-        self.check_and_create_log_file()
-
-    def check_and_create_log_file(self):
-        if not os.path.isfile(self.filename):
-            with open(self.filename, "w") as file:
-                file.write("")  # Create an empty log file if it doesn't exist
-
-    def get_log_file_size(self):
-        return os.path.getsize(self.filename) if os.path.exists(self.filename) else 0
-
-    def write(self, log_type="error", data="", timestamp=None):
-        if timestamp is None:
-            timestamp = datetime.datetime.now()
-
-        file_size = self.get_log_file_size()
-        if file_size >= self.max_file_size_bytes:
-            raise ValueError(f"Log file size exceeds {self.max_file_size_bytes} bytes")
-
-        with open(self.filename, "a") as file:
-            log_entry = f"{timestamp} [{log_type.upper()}]: {data}\n"
-            file.write(log_entry)
 
 class Database:
     @contextmanager
@@ -438,7 +412,7 @@ class Analytics:
         return step_data
 
 class Tools:
-    def heart_rate_plot(data, start_unix, end_unix, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = True, fancy_ticks = True, show_high_hr = 90, correct_midnights = True):
+    def heart_rate_plot(start_unix, end_unix, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = True, fancy_ticks = True, show_high_hr = 90, correct_midnights = True):
         data = Data(start_unix, end_unix)
         plt.figure(figsize=figsize)
 
@@ -446,7 +420,7 @@ class Tools:
         y_points = data.heart_rate
         
         y_points_smooth = correct_nones(y_points)
-        y_points_smooth = savgol_filter(y_points_smooth, 21, 2)
+        y_points_smooth = savgol_filter(y_points_smooth, 300,7) # Default is 27, and 2
         x_points = x_points[0:-1]
         y_points_smooth = y_points_smooth[0:-1]
 
@@ -461,18 +435,24 @@ class Tools:
             if not data.sleep:
                 raise Warning("No sleep data provided but a show_sleep function triggered")
             else:
+                if get_config()["progress_bars"]: progress_bar = tqdm(total=len(data.timestamps), desc="Filling in sleep segments:")
                 for item in data.timestamps:
                     if data.dict[item]["sleep"] == "sleep":
                         plt.axvspan(item, item+60, facecolor='blue', alpha=0.3)
+                    if get_config()["progress_bars"]: progress_bar.update(1)
+                progress_bar.close()
         if show_high_hr:
             if not data.heart_rate:
                 raise Warning("No heartrate data provided but a show_high_hr function triggered")
+            if get_config()["progress_bars"]: progress_bar = tqdm(total=len(data.timestamps), desc="Filling in high-HR segments:")
             for item in data.timestamps:
                 hrrate = data.dict[item]["heart_rate"]
                 if hrrate:
                     if hrrate > show_high_hr:
                         plt.axvspan(item, item+60, facecolor='orange', alpha=0.3)
-                
+                if get_config()["progress_bars"]: progress_bar.update(1)
+            if get_config()["progress_bars"]:progress_bar.close()
+
         plt.xticks(midnight_timestamps, labels, ha='right')
         plt.ylim(round(min(y_points_smooth)-offset), round(max(y_points_smooth)+offset))
         plt.xlim(x_points[0], x_points[-1])
@@ -482,19 +462,7 @@ class Tools:
 
         time.sleep(20)
 
-    def heat_map(start_unix, end_unix, datatype):
-        def daily_summary(start_unix, end_unix):
-            with db.connection() as conn:
-                cursor = db.conn.cursor()
-                cursor.execute("SELECT UNIX_TIME, HUMAN_TIME, STEPS, AVERAGE_HR, SLEEP FROM DAILY_SUMMARY WHERE UNIX_TIME BETWEEN ? AND ?", (start_unix, end_unix))
-                rows = cursor.fetchall()
-                data_dict = dict()
-                for row in rows:
-                    unix_time, human_time, steps, heart_rate, sleep = row
-                    # Assuming unix_time is the date and activity is the sleep value
-                    # Adjust this based on your table structure
-                    data_dict[human_time] = {"sleep": sleep, "steps": steps, "heart_rate": heart_rate}
-                return data_dict
+    def heat_map(start_unix, end_unix, datatype, smooth_data=True):
         def get_time(data):
             return list(data.keys())
         def get_val(data, datatype="steps"):
@@ -503,16 +471,32 @@ class Tools:
                 result.append(data[item][datatype])
             return result
 
-        data = daily_summary(start_unix, end_unix)
+        data = Tools.daily_summary(start_unix, end_unix)
         dates = get_time(data)
         values = get_val(data, datatype)
-        heatmap = july.heatmap(dates, values, title="Daily summary of steps", cmap="golden", month_grid=False)
+        if smooth_data:
+            values = correct_nones(values)
+        print(values)
+        heatmap = july.heatmap(dates, values, title="Daily summary of " + datatype, cmap="github", month_grid=True)
         plt.show()
         time.sleep(20)
+        
+    def daily_summary(start_unix, end_unix):
+        with db.connection() as conn:
+            cursor = db.conn.cursor()
+            cursor.execute("SELECT UNIX_TIME, HUMAN_TIME, STEPS, AVERAGE_HR, SLEEP FROM DAILY_SUMMARY WHERE UNIX_TIME BETWEEN ? AND ?", (start_unix, end_unix))
+            rows = cursor.fetchall()
+            data_dict = dict()
+            for row in rows:
+                unix_time, human_time, steps, heart_rate, sleep = row
+                # Assuming unix_time is the date and activity is the sleep value
+                # Adjust this based on your table structure
+                data_dict[human_time] = {"sleep": sleep, "steps": steps, "heart_rate": heart_rate}
+            return data_dict
 
 if __name__ == "__main__":
     global db, logger, data
     logger = Logger()
     db = Database(DB_LOCATION)
-    # Tools.heart_rate_plot(start_unix=1684823820, end_unix=1685379900)
-    Tools.heat_map(start_unix=1656700800, end_unix=1686700800, datatype="steps")
+    Tools.heart_rate_plot(start_unix=1684823820, end_unix=1685379900)
+    # Tools.heat_map(start_unix=1656700800, end_unix=1686700800, datatype="sleep", smooth_data=True)

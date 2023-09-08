@@ -4,5 +4,6 @@
     "data_folder_id": "USE YOUR OWN FOLDER",
     "update_local_db": true,
     "fill_activity_data": true,
-    "mhi_json_out": true
+    "mhi_json_out": true,
+    "show_sql_version": false
 }
