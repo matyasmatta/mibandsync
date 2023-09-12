@@ -412,6 +412,20 @@ class Analytics:
         return step_data
 
 class Tools:
+    def plot(start_unix, end_unix, type="steps", figsize=(12,6), SMOOTH_GRAPH = False, zone = "22:00:00"):
+        data = Data(start_unix, end_unix)
+        y_points = getattr(data, type_var)
+        x_points = data.timestamps
+
+        # Smoothens the graph using the utils correct_nones() and savgol_filter from scipy
+        if SMOOTH_GRAPH: 
+            y_points = correct_nones(y_points)
+            y_points = savgol_filter(y_points, 300, 7)
+        
+        # Gets the dates the timestamps belong to (see declaration)
+        midnight_timestamps , _ = data.get_midnight(zone=zone)
+
+
     def heart_rate_plot(start_unix, end_unix, offset=10, figsize=(12,6), save=True, dpi=400, zone="22:00:00", show_sleep = True, fancy_ticks = True, show_high_hr = 90, correct_midnights = True):
         data = Data(start_unix, end_unix)
         plt.figure(figsize=figsize)
